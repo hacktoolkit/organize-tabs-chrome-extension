@@ -12,9 +12,10 @@ Available on the Google Chrome Webstore: [PENDING]
 ## Development and Testing
 
 1. Clone this repository locally.
-2. In Google Chrome, go to `Manage Extensions`.
-3. Choose `Load unpacked` and navigate to the folder with `manifest.json`.
-4. Voilà!
+1. In Google Chrome, go to `Manage Extensions` (<chrome://extensions/>).
+1. Enable `Developer mode`.
+1. Press `Load unpacked` and navigate to the folder with `manifest.json`, and `Select`.
+1. Voilà!
 
 ## Building and publishing
 
