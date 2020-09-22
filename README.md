@@ -6,7 +6,7 @@ This plugin enables the following operations:
 - **Deduplicate Tabs** - Enumerates through all tabs, and keeps only the first copy of a tab with a unique URL, and closes the remaining tabs with duplicate URLs. Recommend running this *after* running **Collate Tabs**.
 - **Close Blank Tabs** - Closes all blank tabs
 
-Available on the Google Chrome Webstore: [PENDING]
+Available on the Google Chrome Webstore: <https://chrome.google.com/webstore/detail/organize-tabs/ebnlpacdgjnofakgfgbildmjdhbibnpa>
 
 ## Screenshots
 
