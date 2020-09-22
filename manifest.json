@@ -5,11 +5,15 @@
     "version": "0.01",
 
     "description": "Organize tabs in Google Chrome.",
+
     "icons" : {
+        "16" : "img/organize_tabs_icon_128.png",
+        "64" : "img/organize_tabs_icon_128.png",
+        "128" : "img/organize_tabs_icon_128.png"
     },
 
     "browser_action": {
-        //"default_icon": "img/64organize_tabs.png",
+        "default_icon": "img/organize_tabs_icon_128.png",
         "default_popup": "src/popup.html",
         "default_title": "Organize Tabs"
     },

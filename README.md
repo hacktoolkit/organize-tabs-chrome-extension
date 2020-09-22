@@ -6,3 +6,20 @@ This plugin enables the following operations:
 - **Close Blank Tabs** - Closes all blank tabs
 
 Available on the Google Chrome Webstore: [PENDING]
+
+
+## Building and publishing
+
+See: https://developer.chrome.com/webstore/publish
+
+
+## Contributing
+
+Contributions are welcome. Please fork the repository and submit a pull request from your local branch.
+
+
+## License
+
+MIT. See LICENSE.
+
+Logo: Derived from `window-restore` [icon](https://fontawesome.com/icons/window-restore?style=regular) from Font Awesome (License: <https://fontawesome.com/license>).
