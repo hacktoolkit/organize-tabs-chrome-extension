@@ -8,6 +8,9 @@ This plugin enables the following operations:
 
 Available on the Google Chrome Webstore: [PENDING]
 
+## Screenshots
+
+![image](https://user-images.githubusercontent.com/422501/93855253-0e9c1900-fc6c-11ea-8752-d9292a295f15.png)
 
 ## Development and Testing
 
