@@ -3,6 +3,7 @@
 This plugin enables the following operations:
 
 - **Collate Tabs** - Groups all of your tabs into separate windows, grouped by hostname, and sorted by URL. Ignores windows with pinned tabs.
+- **Deduplicate Tabs** - Enumerates through all tabs, and keeps only the first copy of a tab with a unique URL, and closes the remaining tabs with duplicate URLs. Recommend running this *after* running **Collate Tabs**.
 - **Close Blank Tabs** - Closes all blank tabs
 
 Available on the Google Chrome Webstore: [PENDING]

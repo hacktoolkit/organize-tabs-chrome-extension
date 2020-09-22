@@ -72,7 +72,7 @@ $(function() {
                 );
 
                 // Create a new window and move tabs over
-                moveTabsToNewWindow(orderedTabs);
+                moveTabsToNewWindow(orderedTabs, closeBlankTabs);
             }
         });
 
@@ -96,6 +96,22 @@ $(function() {
                 index: -1
             };
             chrome.tabs.move(tabIds, moveProperties, callback);
+        });
+    }
+
+
+    function deduplicateTabs() {
+        chrome.tabs.query({}, function(tabs) {
+            var VISITED_URLS = {};
+            _.forEach(tabs, function(tab) {
+                var url = tab.url;
+                if (typeof(VISITED_URLS[url]) === 'undefined') {
+                    VISITED_URLS[url] = true;
+                } else {
+                    // already visited, close the tab
+                    chrome.tabs.remove(tab.id);
+                }
+            });
         });
     }
 
@@ -146,6 +162,11 @@ $(function() {
         };
         var callback = handleCollateTabsGotWindows;
         chrome.windows.getAll(getInfo, callback);
+    }
+
+
+    function handleDeduplicateTabsClicked() {
+        deduplicateTabs();
     }
 
 
@@ -213,6 +234,7 @@ $(function() {
 
     function initEventHandlers() {
         $('.collate-tabs').click(handleCollateTabsClicked);
+        $('.deduplicate-tabs').click(handleDeduplicateTabsClicked);
         $('.close-orphans').click(handleCloseOrphansClicked);
         $('.close-blank-tabs').click(handleCloseBlankTabsClicked);
     }
