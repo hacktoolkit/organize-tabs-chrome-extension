@@ -1,0 +1,44 @@
+{
+    "manifest_version": 2,
+
+    "name": "Organize Tabs by Hacktoolkit",
+    "version": "0.01",
+
+    "description": "Organize tabs in Google Chrome.",
+    "icons" : {
+    },
+
+    "browser_action": {
+        //"default_icon": "img/64organize_tabs.png",
+        "default_popup": "src/popup.html",
+        "default_title": "Organize Tabs"
+    },
+
+    "author": "Hacktoolkit (@hacktoolkit)",
+
+    // "content_scripts": [
+    //     {
+    //         "matches": [
+    //             "*://*/*"
+    //         ],
+    //         "css": [
+    //         ],
+    //         "js": [
+    //             "src/vendor/jquery-3.5.1.min.js",
+    //             "src/vendor/lodash-4.17.20.min.js",
+    //             "src/js/organize_tabs.js"
+    //         ]
+    //     }
+    // ],
+
+    "options_ui": {
+        "page": "src/options.html",
+        "chrome_style": true
+    },
+
+    "permissions": [
+        "tabs"
+    ],
+
+    "short_name": "Organize Tabs"
+}
