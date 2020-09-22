@@ -20,21 +20,6 @@
 
     "author": "Hacktoolkit (@hacktoolkit)",
 
-    // "content_scripts": [
-    //     {
-    //         "matches": [
-    //             "*://*/*"
-    //         ],
-    //         "css": [
-    //         ],
-    //         "js": [
-    //             "src/vendor/jquery-3.5.1.min.js",
-    //             "src/vendor/lodash-4.17.20.min.js",
-    //             "src/js/organize_tabs.js"
-    //         ]
-    //     }
-    // ],
-
     "options_ui": {
         "page": "src/options.html",
         "chrome_style": true
