@@ -10,7 +10,7 @@ Available on the Google Chrome Webstore: [PENDING]
 
 ## Screenshots
 
-![image](https://user-images.githubusercontent.com/422501/93855253-0e9c1900-fc6c-11ea-8752-d9292a295f15.png)
+![image](https://user-images.githubusercontent.com/422501/93855418-528f1e00-fc6c-11ea-94e1-3a76d875e5b8.png)
 
 ## Development and Testing
 
