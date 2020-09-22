@@ -1,7 +1,7 @@
 {
     "manifest_version": 2,
 
-    "name": "Organize Tabs by Hacktoolkit",
+    "name": "Organize Tabs",
     "version": "0.01",
 
     "description": "Organize tabs in Google Chrome.",
