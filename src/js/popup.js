@@ -82,6 +82,40 @@ $(function() {
     }
 
 
+    function consolidateTabs() {
+        // Algorithm:
+        // 1. Go through all the windows/tabs in WINDOW_TABS, and gather a list of all tabsa
+        // 2. Move all tabs to a new window, ordered by the URL
+        // 3. Close all old windows
+
+        var combinedTabs = [];
+
+        // Build buckets of tabs keyed by hostname
+        _.forEach(_.keys(WINDOW_TABS), function(windowId) {
+            var tabs = WINDOW_TABS[windowId];
+            _.forEach(tabs, function(tab) {
+                var match = HOST_REGEX.exec(tab.url);
+                if (match) {
+                    combinedTabs.push(tab);
+                } else {
+                    // skip non-matching URLS, e.g. chrome://newtab/
+                }
+            });
+        });
+
+        // Sort tabs by URL
+        var orderedTabs = _.sortBy(
+            combinedTabs,
+            [
+                function(tab) { return tab.url; }
+            ]
+        );
+
+        // Create a new window and move tabs over
+        moveTabsToNewWindow(orderedTabs, closeBlankTabs);
+    }
+
+
     function moveTabsToNewWindow(tabs, callback) {
         var tabIds = _.map(tabs, function(tab) {
             return tab.id;
@@ -112,6 +146,28 @@ $(function() {
                     chrome.tabs.remove(tab.id);
                 }
             });
+        });
+    }
+
+
+    function sortWindowTabs() {
+        chrome.tabs.query({ currentWindow: true }, function(tabs) {
+            var orderedTabs = _.sortBy(
+                tabs,
+                [
+                    function(tab) { return tab.url; }
+                ]
+            );
+
+            var tabIds = _.map(orderedTabs, function(tab) {
+                return tab.id;
+            });
+
+            var moveProperties = {
+                index: -1
+            };
+
+            chrome.tabs.move(tabIds, moveProperties);
         });
     }
 
@@ -160,13 +216,31 @@ $(function() {
             populate: true,
             windowTypes: ['normal']
         };
-        var callback = handleCollateTabsGotWindows;
+        var callback = getWindowsCallbackFactory({ collate: true });
+        chrome.windows.getAll(getInfo, callback);
+    }
+
+
+    function handleConsolidateTabsClicked() {
+        resetVariables();
+
+        // https://developer.chrome.com/extensions/windows#method-getAll
+        var getInfo = {
+            populate: true,
+            windowTypes: ['normal']
+        };
+        var callback = getWindowsCallbackFactory({ consolidate: true });
         chrome.windows.getAll(getInfo, callback);
     }
 
 
     function handleDeduplicateTabsClicked() {
         deduplicateTabs();
+    }
+
+
+    function handleSortWindowTabsClicked() {
+        sortWindowTabs();
     }
 
 
@@ -180,31 +254,39 @@ $(function() {
     }
 
 
-    // ----- COLLATE TAB HELPERS --------------------
+    // ----- COLLATE / CONSOLIDATE TAB HELPERS --------------------
 
 
-    function handleCollateTabsGotWindows(windows) {
-        var regularWindows = _.filter(windows, function(window) {
-            return !window.incognito;
-        });
+    function getWindowsCallbackFactory(cfg) {
+        if (typeof(cfg.collate) === 'undefined' && typeof(cfg.consolidate) === 'undefined') {
+            throw "getWindowsCallbackFactory must be invoked in 'collate' or 'consolidate' mode";
+        }
 
-        // set variables
-        NUM_WINDOWS = _.size(regularWindows);
-        NUM_WINDOWS_WITH_RESOLVED_TABS = 0;
+        var callback = function (windows) {
+            var regularWindows = _.filter(windows, function(window) {
+                return !window.incognito;
+            });
 
-        _.forEach(regularWindows, function(window) {
-            // get all tabs in order to collate them
-            // https://developer.chrome.com/extensions/tabs#method-query
-            var queryInfo = {
-                windowId: window.id
-            };
-            var callback = makeHandleGotTabsForWindow(window);
-            chrome.tabs.query(queryInfo, callback);
-        });
-    };
+            // set variables
+            NUM_WINDOWS = _.size(regularWindows);
+            NUM_WINDOWS_WITH_RESOLVED_TABS = 0;
+
+            _.forEach(regularWindows, function(window) {
+                // get all tabs in order to collate them
+                // https://developer.chrome.com/extensions/tabs#method-query
+                var queryInfo = {
+                    windowId: window.id
+                };
+                var callback = makeHandleGotTabsForWindow(window, cfg);
+                chrome.tabs.query(queryInfo, callback);
+            });
+        };
+
+        return callback
+    }
 
 
-    function makeHandleGotTabsForWindow(window) {
+    function makeHandleGotTabsForWindow(window, cfg) {
         var handler = function(tabs) {
             ++NUM_WINDOWS_WITH_RESOLVED_TABS;
 
@@ -222,7 +304,11 @@ $(function() {
 
             if (NUM_WINDOWS_WITH_RESOLVED_TABS === NUM_WINDOWS) {
                 // got all the windows
-                collateTabs();
+                if (cfg.collate) {
+                    collateTabs();
+                } else if (cfg.consolidate) {
+                    consolidateTabs();
+                }
             }
         };
         return handler;
@@ -234,7 +320,9 @@ $(function() {
 
     function initEventHandlers() {
         $('.collate-tabs').click(handleCollateTabsClicked);
+        $('.consolidate-tabs').click(handleConsolidateTabsClicked);
         $('.deduplicate-tabs').click(handleDeduplicateTabsClicked);
+        $('.sort-window-tabs').click(handleSortWindowTabsClicked);
         $('.close-orphans').click(handleCloseOrphansClicked);
         $('.close-blank-tabs').click(handleCloseBlankTabsClicked);
     }
