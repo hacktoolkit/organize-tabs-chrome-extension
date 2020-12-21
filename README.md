@@ -12,7 +12,7 @@ Available on the Google Chrome Webstore: <https://chrome.google.com/webstore/det
 
 ## Screenshots
 
-![image](https://user-images.githubusercontent.com/422501/93855418-528f1e00-fc6c-11ea-94e1-3a76d875e5b8.png)
+![image](https://github.com/hacktoolkit/organize-tabs-chrome-extension/raw/master/promo/screenshot1.png)
 
 ## Development and Testing
 
