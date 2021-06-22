@@ -1,24 +1,17 @@
-$(function() {
-
-
+$(function () {
     // ----- CONSTANTS --------------------
-
 
     var HOST_REGEX = /https?:\/\/(?<host>[^\/]*).*/;
     var NEW_TAB_URL = 'chrome://newtab/';
 
-
     // ----- CORE VARIABLES --------------------
-
 
     var NUM_WINDOWS = null;
     var NUM_WINDOWS_WITH_RESOLVED_TABS = null;
     var WINDOW_TABS = {};
     var BUCKETS = {};
 
-
     // ----- CORE FUNCTIONS --------------------
-
 
     function resetVariables() {
         NUM_WINDOWS = 0;
@@ -26,7 +19,6 @@ $(function() {
         WINDOW_TABS = {};
         BUCKETS = {};
     }
-
 
     function collateTabs() {
         // Algorithm:
@@ -37,14 +29,14 @@ $(function() {
         // 3. Close all old windows
 
         // Build buckets of tabs keyed by hostname
-        _.forEach(_.keys(WINDOW_TABS), function(windowId) {
+        _.forEach(_.keys(WINDOW_TABS), function (windowId) {
             var tabs = WINDOW_TABS[windowId];
-            _.forEach(tabs, function(tab) {
+            _.forEach(tabs, function (tab) {
                 var match = HOST_REGEX.exec(tab.url);
                 if (match) {
                     var host = match.groups.host;
 
-                    if (typeof(BUCKETS[host]) === 'undefined') {
+                    if (typeof BUCKETS[host] === 'undefined') {
                         BUCKETS[host] = [];
                     }
 
@@ -59,17 +51,16 @@ $(function() {
         // Identify buckets with single tabs
         var singleTabs = [];
 
-        _.forEach(_.keys(BUCKETS), function(host) {
+        _.forEach(_.keys(BUCKETS), function (host) {
             var tabs = BUCKETS[host];
             if (_.size(tabs) === 1) {
                 singleTabs.push(tabs[0]);
             } else {
-                var orderedTabs = _.sortBy(
-                    tabs,
-                    [
-                        function(tab) { return tab.url; }
-                    ]
-                );
+                var orderedTabs = _.sortBy(tabs, [
+                    function (tab) {
+                        return tab.url;
+                    }
+                ]);
 
                 // Create a new window and move tabs over
                 moveTabsToNewWindow(orderedTabs, closeBlankTabs);
@@ -81,7 +72,6 @@ $(function() {
         moveTabsToNewWindow(singleTabs, closeBlankTabs);
     }
 
-
     function consolidateTabs() {
         // Algorithm:
         // 1. Go through all the windows/tabs in WINDOW_TABS, and gather a list of all tabsa
@@ -91,9 +81,9 @@ $(function() {
         var combinedTabs = [];
 
         // Build buckets of tabs keyed by hostname
-        _.forEach(_.keys(WINDOW_TABS), function(windowId) {
+        _.forEach(_.keys(WINDOW_TABS), function (windowId) {
             var tabs = WINDOW_TABS[windowId];
-            _.forEach(tabs, function(tab) {
+            _.forEach(tabs, function (tab) {
                 var match = HOST_REGEX.exec(tab.url);
                 if (match) {
                     combinedTabs.push(tab);
@@ -104,26 +94,24 @@ $(function() {
         });
 
         // Sort tabs by URL
-        var orderedTabs = _.sortBy(
-            combinedTabs,
-            [
-                function(tab) { return tab.url; }
-            ]
-        );
+        var orderedTabs = _.sortBy(combinedTabs, [
+            function (tab) {
+                return tab.url;
+            }
+        ]);
 
         // Create a new window and move tabs over
         moveTabsToNewWindow(orderedTabs, closeBlankTabs);
     }
 
-
     function moveTabsToNewWindow(tabs, callback) {
-        var tabIds = _.map(tabs, function(tab) {
+        var tabIds = _.map(tabs, function (tab) {
             return tab.id;
         });
 
         // https://developer.chrome.com/extensions/windows#method-create
         var createData = {};
-        chrome.windows.create(createData, function(window) {
+        chrome.windows.create(createData, function (window) {
             // https://developer.chrome.com/extensions/tabs#method-move
             var moveProperties = {
                 windowId: window.id,
@@ -133,13 +121,12 @@ $(function() {
         });
     }
 
-
     function deduplicateTabs() {
-        chrome.tabs.query({}, function(tabs) {
+        chrome.tabs.query({}, function (tabs) {
             var VISITED_URLS = {};
-            _.forEach(tabs, function(tab) {
+            _.forEach(tabs, function (tab) {
                 var url = tab.url;
-                if (typeof(VISITED_URLS[url]) === 'undefined') {
+                if (typeof VISITED_URLS[url] === 'undefined') {
                     VISITED_URLS[url] = true;
                 } else {
                     // already visited, close the tab
@@ -149,17 +136,15 @@ $(function() {
         });
     }
 
-
     function sortWindowTabs() {
-        chrome.tabs.query({ currentWindow: true }, function(tabs) {
-            var orderedTabs = _.sortBy(
-                tabs,
-                [
-                    function(tab) { return tab.url; }
-                ]
-            );
+        chrome.tabs.query({ currentWindow: true }, function (tabs) {
+            var orderedTabs = _.sortBy(tabs, [
+                function (tab) {
+                    return tab.url;
+                }
+            ]);
 
-            var tabIds = _.map(orderedTabs, function(tab) {
+            var tabIds = _.map(orderedTabs, function (tab) {
                 return tab.id;
             });
 
@@ -171,7 +156,6 @@ $(function() {
         });
     }
 
-
     // DEPRECATED in favor of closeBlankTabs, which is a superset of this
     function closeOrphanedWindows() {
         // close all windows whose only open tab is "chrome://newtab/"
@@ -180,8 +164,8 @@ $(function() {
             populate: true,
             windowTypes: ['normal']
         };
-        var callback = function(windows) {
-            _.forEach(windows, function(window) {
+        var callback = function (windows) {
+            _.forEach(windows, function (window) {
                 if (_.size(window.tabs) === 1) {
                     if (window.tabs[0].url === NEW_TAB_URL) {
                         chrome.windows.remove(window.id);
@@ -190,23 +174,49 @@ $(function() {
             });
         };
         chrome.windows.getAll(getInfo, callback);
-    };
+    }
 
+    function closeDomainTabs() {
+        // https://developer.chrome.com/docs/extensions/reference/tabs/#get-the-current-tab
+
+        var queryOptions = { active: true, currentWindow: true };
+        chrome.tabs.query(queryOptions, function (tabs) {
+            var tab = tabs[0];
+            var match = HOST_REGEX.exec(tab.url);
+            if (match) {
+                var host = match.groups.host;
+                closeTabsWithHostname(host);
+            }
+        });
+    }
 
     function closeBlankTabs() {
         // https://developer.chrome.com/extensions/tabs#method-query
         var queryInfo = {
             url: NEW_TAB_URL
         };
-        chrome.tabs.query(queryInfo, function(tabs) {
-            var tabIds = _.map(tabs, function(tab) { return tab.id; });
+        chrome.tabs.query(queryInfo, function (tabs) {
+            var tabIds = _.map(tabs, function (tab) {
+                return tab.id;
+            });
             chrome.tabs.remove(tabIds);
         });
     }
 
+    // ----- HELPER FUNCTIONS --------------------
+
+    function closeTabsWithHostname(host) {
+        // https://developer.chrome.com/docs/extensions/reference/tabs/#method-query
+        // https://developer.chrome.com/docs/extensions/mv3/match_patterns/
+        var urlPattern = '*://' + host + '/*';
+        chrome.tabs.query({ url: urlPattern }, function (tabs) {
+            _.forEach(tabs, function (tab) {
+                chrome.tabs.remove(tab.id);
+            });
+        });
+    }
 
     // ----- EVENT HANDLERS --------------------
-
 
     function handleCollateTabsClicked() {
         resetVariables();
@@ -220,7 +230,6 @@ $(function() {
         chrome.windows.getAll(getInfo, callback);
     }
 
-
     function handleConsolidateTabsClicked() {
         resetVariables();
 
@@ -233,37 +242,38 @@ $(function() {
         chrome.windows.getAll(getInfo, callback);
     }
 
-
     function handleDeduplicateTabsClicked() {
         deduplicateTabs();
     }
-
 
     function handleSortWindowTabsClicked() {
         sortWindowTabs();
     }
 
-
     function handleCloseOrphansClicked() {
         closeOrphanedWindows();
     }
 
+    function handleCloseDomainTabsClicked() {
+        closeDomainTabs();
+    }
 
     function handleCloseBlankTabsClicked() {
         closeBlankTabs();
     }
 
-
     // ----- COLLATE / CONSOLIDATE TAB HELPERS --------------------
 
-
     function getWindowsCallbackFactory(cfg) {
-        if (typeof(cfg.collate) === 'undefined' && typeof(cfg.consolidate) === 'undefined') {
+        if (
+            typeof cfg.collate === 'undefined' &&
+            typeof cfg.consolidate === 'undefined'
+        ) {
             throw "getWindowsCallbackFactory must be invoked in 'collate' or 'consolidate' mode";
         }
 
         var callback = function (windows) {
-            var regularWindows = _.filter(windows, function(window) {
+            var regularWindows = _.filter(windows, function (window) {
                 return !window.incognito;
             });
 
@@ -271,7 +281,7 @@ $(function() {
             NUM_WINDOWS = _.size(regularWindows);
             NUM_WINDOWS_WITH_RESOLVED_TABS = 0;
 
-            _.forEach(regularWindows, function(window) {
+            _.forEach(regularWindows, function (window) {
                 // get all tabs in order to collate them
                 // https://developer.chrome.com/extensions/tabs#method-query
                 var queryInfo = {
@@ -282,15 +292,14 @@ $(function() {
             });
         };
 
-        return callback
+        return callback;
     }
 
-
     function makeHandleGotTabsForWindow(window, cfg) {
-        var handler = function(tabs) {
+        var handler = function (tabs) {
             ++NUM_WINDOWS_WITH_RESOLVED_TABS;
 
-            var pinnedTabs = _.filter(tabs, function(tab) {
+            var pinnedTabs = _.filter(tabs, function (tab) {
                 return tab.pinned;
             });
 
@@ -314,23 +323,19 @@ $(function() {
         return handler;
     }
 
-
     // ----- INITIALIZATION --------------------
-
 
     function initEventHandlers() {
         $('.collate-tabs').click(handleCollateTabsClicked);
         $('.consolidate-tabs').click(handleConsolidateTabsClicked);
         $('.deduplicate-tabs').click(handleDeduplicateTabsClicked);
         $('.sort-window-tabs').click(handleSortWindowTabsClicked);
+        $('.close-domain-tabs').click(handleCloseDomainTabsClicked);
         $('.close-orphans').click(handleCloseOrphansClicked);
         $('.close-blank-tabs').click(handleCloseBlankTabsClicked);
     }
 
-
-    function init() {
-    }
-
+    function init() {}
 
     initEventHandlers();
     init();
