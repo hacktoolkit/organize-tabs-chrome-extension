@@ -11,6 +11,11 @@ $(function () {
     var WINDOW_TABS = {};
     var BUCKETS = {};
 
+    // ----- OPTIONS --------------------
+
+    // TODO: make this a configurable option
+    var SKIP_WINDOWS_WITH_PINNED_TABS = false;
+
     // ----- CORE FUNCTIONS --------------------
 
     function resetVariables() {
@@ -303,12 +308,16 @@ $(function () {
                 return tab.pinned;
             });
 
-            if (_.size(pinnedTabs) > 0) {
+            var unpinnedTabs = _.filter(tabs, function (tab) {
+                return !tab.pinned;
+            });
+
+            if (SKIP_WINDOWS_WITH_PINNED_TABS &&_.size(pinnedTabs) > 0) {
                 // skip windows with pinned tabs
                 return false;
             } else {
                 // store tabs for further processing
-                WINDOW_TABS[window.id] = tabs;
+                WINDOW_TABS[window.id] = unpinnedTabs;
             }
 
             if (NUM_WINDOWS_WITH_RESOLVED_TABS === NUM_WINDOWS) {
