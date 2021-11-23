@@ -130,7 +130,8 @@ $(function () {
         chrome.tabs.query({}, function (tabs) {
             var VISITED_URLS = {};
             _.forEach(tabs, function (tab) {
-                var url = tab.url;
+                // grab the base URL without the fragment identifier
+                var url = tab.url.split('#')[0];
                 if (typeof VISITED_URLS[url] === 'undefined') {
                     VISITED_URLS[url] = true;
                 } else {
@@ -312,7 +313,7 @@ $(function () {
                 return !tab.pinned;
             });
 
-            if (SKIP_WINDOWS_WITH_PINNED_TABS &&_.size(pinnedTabs) > 0) {
+            if (SKIP_WINDOWS_WITH_PINNED_TABS && _.size(pinnedTabs) > 0) {
                 // skip windows with pinned tabs
                 return false;
             } else {
