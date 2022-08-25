@@ -2,12 +2,13 @@
 
 This plugin enables the following operations:
 
-- **Collate Tabs** - Groups all of your tabs into separate windows, grouped by hostname, and sorted by URL. Ignores windows with pinned tabs.
+- **Collate Tabs** - Groups all tabs into separate windows, grouped by hostname, and sorted by URL. Ignores windows with pinned tabs.
 - **Consolidate Tabs** - Combines all tabs across all windows into one window, sorted by URL. Ignores windows with pinned tabs.
 - **Deduplicate Tabs** - Enumerates through all tabs, and keeps only the first copy of a tab with a unique URL, and closes the remaining tabs with duplicate URLs. Recommend running this *after* running **Collate Tabs**.
 - **Sort Tabs in Window** - Sorts tabs in current window by URL.
 - **Close All Tabs from this Domain** - Close all tabs opened to the same domain/host as the current tab.
 - **Close Blank Tabs** - Closes all blank tabs.
+- **Bring All Windows To Front** - Focuses all windows in session and tiles them. Useful for rediscovering misplaced windows.
 
 Available on the Google Chrome Webstore: <https://chrome.google.com/webstore/detail/organize-tabs/ebnlpacdgjnofakgfgbildmjdhbibnpa>
 

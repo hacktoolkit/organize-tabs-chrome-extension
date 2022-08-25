@@ -26,6 +26,8 @@ $(function () {
     }
 
     function collateTabs() {
+        // Groups all tabs into separate windows, grouped by hostname, and sorted by URL. Ignores windows with pinned tabs.
+        //
         // Algorithm:
         // 1. Go through all the windows/tabs in WINDOW_TABS, and build buckets of tabs keyed by hostname
         // 2. Loop through every bucket.
@@ -78,8 +80,10 @@ $(function () {
     }
 
     function consolidateTabs() {
+        // Combines all tabs across all windows into one window, sorted by URL. Ignores windows with pinned tabs.
+        //
         // Algorithm:
-        // 1. Go through all the windows/tabs in WINDOW_TABS, and gather a list of all tabsa
+        // 1. Go through all the windows/tabs in WINDOW_TABS, and gather a list of all tabs
         // 2. Move all tabs to a new window, ordered by the URL
         // 3. Close all old windows
 
@@ -265,7 +269,34 @@ $(function () {
     }
 
     function handleCloseBlankTabsClicked() {
+        console.log('whee');
         closeBlankTabs();
+    }
+
+    function handleFocusAllWindowsClicked() {
+        // Move all windows in session to the front
+        //
+        // https://developer.chrome.com/extensions/windows#method-getAll
+        // https://developer.chrome.com/docs/extensions/reference/windows/#method-update
+        var getInfo = {
+            populate: false,
+            windowTypes: ['normal', 'popup']
+        };
+        console.log('hey');
+
+        chrome.windows.getAll(getInfo, function (windows) {
+            var leftOffset = 40;
+            var topOffset = 40;
+            var count = 1;
+            _.forEach(windows, function (window) {
+                chrome.windows.update(window.id, {
+                    focused: true,
+                    left: leftOffset * count,
+                    top: topOffset * count
+                });
+                ++count;
+            });
+        });
     }
 
     // ----- COLLATE / CONSOLIDATE TAB HELPERS --------------------
@@ -327,6 +358,8 @@ $(function () {
                     collateTabs();
                 } else if (cfg.consolidate) {
                     consolidateTabs();
+                } else {
+                    // do nothing
                 }
             }
         };
@@ -343,6 +376,7 @@ $(function () {
         $('.close-domain-tabs').click(handleCloseDomainTabsClicked);
         $('.close-orphans').click(handleCloseOrphansClicked);
         $('.close-blank-tabs').click(handleCloseBlankTabsClicked);
+        $('.focus-all-windows').click(handleFocusAllWindowsClicked);
     }
 
     function init() {}
