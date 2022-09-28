@@ -1,8 +1,8 @@
 {
-    "manifest_version": 2,
+    "manifest_version": 3,
 
     "name": "Organize Tabs",
-    "version": "0.5.0",
+    "version": "0.6.0",
 
     "description": "Organize tabs in Google Chrome.",
 
@@ -12,7 +12,7 @@
         "128" : "img/organize_tabs_icon_128.png"
     },
 
-    "browser_action": {
+    "action": {
         "default_icon": "img/organize_tabs_icon_128.png",
         "default_popup": "src/popup.html",
         "default_title": "Organize Tabs"
@@ -21,8 +21,7 @@
     "author": "Hacktoolkit (@hacktoolkit)",
 
     "options_ui": {
-        "page": "src/options.html",
-        "chrome_style": true
+        "page": "src/options.html"
     },
 
     "permissions": [
