@@ -8,8 +8,10 @@ $(function () {
 
     var NUM_WINDOWS = null;
     var NUM_WINDOWS_WITH_RESOLVED_TABS = null;
+    var PINNED_TABS = [];
     var WINDOW_TABS = {};
     var BUCKETS = {};
+    var HOUSEKEEPING_DONE = false;
 
     // ----- OPTIONS --------------------
 
@@ -21,8 +23,12 @@ $(function () {
     function resetVariables() {
         NUM_WINDOWS = 0;
         NUM_WINDOWS_WITH_RESOLVED_TABS = 0;
+
+        PINNED_TABS = [];
         WINDOW_TABS = {};
         BUCKETS = {};
+
+        HOUSEKEEPING_DONE = false;
     }
 
     function collateTabs() {
@@ -70,13 +76,17 @@ $(function () {
                 ]);
 
                 // Create a new window and move tabs over
-                moveTabsToNewWindow(orderedTabs, closeBlankTabs);
+                moveTabsToNewWindow(orderedTabs).then(function (movedTabs) {
+                    closeBlankTabs();
+                });
             }
         });
 
         // Create a new window for single tabs, and move over, and include a callback
         // to close old windows
-        moveTabsToNewWindow(singleTabs, closeBlankTabs);
+        moveTabsToNewWindow(singleTabs).then(function (movedTabs) {
+            closeBlankTabs();
+        });
     }
 
     function consolidateTabs() {
@@ -89,12 +99,13 @@ $(function () {
 
         var combinedTabs = [];
 
-        // Build buckets of tabs keyed by hostname
-        _.forEach(_.keys(WINDOW_TABS), function (windowId) {
+        // Combine unpinned tabs for all windows, ordered by `windowId`
+        _.forEach(_.sortedUniq(_.keys(WINDOW_TABS)), function (windowId) {
             var tabs = WINDOW_TABS[windowId];
             _.forEach(tabs, function (tab) {
                 var match = HOST_REGEX.exec(tab.url);
                 if (match) {
+                    // include tabs with actual webpages
                     combinedTabs.push(tab);
                 } else {
                     // skip non-matching URLS, e.g. chrome://newtab/
@@ -102,31 +113,44 @@ $(function () {
             });
         });
 
-        // Sort tabs by URL
-        var orderedTabs = _.sortBy(combinedTabs, [
+        // Sort unpinned tabs by URL
+        var orderedCombinedTabs = _.sortBy(combinedTabs, [
             function (tab) {
                 return tab.url;
             }
         ]);
 
+        // Combine pinned tabs with unpinned tabs
+        var orderedTabs = _.concat(PINNED_TABS, orderedCombinedTabs);
+
         // Create a new window and move tabs over
-        moveTabsToNewWindow(orderedTabs, closeBlankTabs);
+        moveTabsToNewWindow(orderedTabs)
+            .then(function (movedTabs) {
+                return closeBlankTabs();
+            })
+            .then(function (closedTabs) {
+                repinTabs();
+            });
     }
 
-    function moveTabsToNewWindow(tabs, callback) {
+    function moveTabsToNewWindow(tabs) {
         var tabIds = _.map(tabs, function (tab) {
             return tab.id;
         });
 
         // https://developer.chrome.com/extensions/windows#method-create
         var createData = {};
-        chrome.windows.create(createData, function (window) {
+        return chrome.windows.create(createData).then(function (window) {
             // https://developer.chrome.com/extensions/tabs#method-move
             var moveProperties = {
                 windowId: window.id,
                 index: -1
             };
-            chrome.tabs.move(tabIds, moveProperties, callback);
+
+            // Open bug in Chromium: https://bugs.chromium.org/p/chromium/issues/detail?id=876460&q=chrome.tabs.move&can=2
+            // When moving pinned tabs via API, it becomes unpinned.
+            // Also, when `tabIds` includes pinned tabs, the promise/callback fails to complete
+            return chrome.tabs.move(tabIds, moveProperties);
         });
     }
 
@@ -186,11 +210,21 @@ $(function () {
         chrome.windows.getAll(getInfo, callback);
     }
 
+    function repinTabs() {
+        // re-pin moved tabs that were previously pinned
+        // https://developer.chrome.com/docs/extensions/reference/tabs/#method-update
+        return Promise.all(
+            _.map(PINNED_TABS, function (tab) {
+                return chrome.tabs.update(tab.id, { pinned: true });
+            })
+        );
+    }
+
     function closeDomainTabs() {
         // https://developer.chrome.com/docs/extensions/reference/tabs/#get-the-current-tab
 
         var queryOptions = { active: true, currentWindow: true };
-        chrome.tabs.query(queryOptions, function (tabs) {
+        return chrome.tabs.query(queryOptions, function (tabs) {
             var tab = tabs[0];
             var match = HOST_REGEX.exec(tab.url);
             if (match) {
@@ -205,11 +239,11 @@ $(function () {
         var queryInfo = {
             url: NEW_TAB_URL
         };
-        chrome.tabs.query(queryInfo, function (tabs) {
+        return chrome.tabs.query(queryInfo).then(function (tabs) {
             var tabIds = _.map(tabs, function (tab) {
                 return tab.id;
             });
-            chrome.tabs.remove(tabIds);
+            return chrome.tabs.remove(tabIds);
         });
     }
 
@@ -240,7 +274,22 @@ $(function () {
         chrome.windows.getAll(getInfo, callback);
     }
 
-    function handleConsolidateTabsClicked() {
+    function handleConsolidateAllTabsClicked() {
+        resetVariables();
+
+        // https://developer.chrome.com/extensions/windows#method-getAll
+        var getInfo = {
+            populate: true,
+            windowTypes: ['normal']
+        };
+        var callback = getWindowsCallbackFactory({
+            consolidate: true,
+            allTabs: true
+        });
+        chrome.windows.getAll(getInfo, callback);
+    }
+
+    function handleConsolidatePinnedTabsClicked() {
         resetVariables();
 
         // https://developer.chrome.com/extensions/windows#method-getAll
@@ -269,11 +318,12 @@ $(function () {
     }
 
     function handleCloseBlankTabsClicked() {
-        console.log('whee');
         closeBlankTabs();
     }
 
     function handleFocusAllWindowsClicked() {
+        // TODO: unused?
+
         // Move all windows in session to the front
         //
         // https://developer.chrome.com/extensions/windows#method-getAll
@@ -282,7 +332,6 @@ $(function () {
             populate: false,
             windowTypes: ['normal', 'popup']
         };
-        console.log('hey');
 
         chrome.windows.getAll(getInfo, function (windows) {
             var leftOffset = 40;
@@ -349,6 +398,9 @@ $(function () {
                 return false;
             } else {
                 // store tabs for further processing
+                if (cfg.allTabs) {
+                    PINNED_TABS = _.concat(PINNED_TABS, pinnedTabs);
+                }
                 WINDOW_TABS[window.id] = unpinnedTabs;
             }
 
@@ -370,7 +422,8 @@ $(function () {
 
     function initEventHandlers() {
         $('.collate-tabs').click(handleCollateTabsClicked);
-        $('.consolidate-tabs').click(handleConsolidateTabsClicked);
+        $('.consolidate-pinned-tabs').click(handleConsolidatePinnedTabsClicked);
+        $('.consolidate-all-tabs').click(handleConsolidateAllTabsClicked);
         $('.deduplicate-tabs').click(handleDeduplicateTabsClicked);
         $('.sort-window-tabs').click(handleSortWindowTabsClicked);
         $('.close-domain-tabs').click(handleCloseDomainTabsClicked);
