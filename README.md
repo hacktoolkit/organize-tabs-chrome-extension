@@ -39,6 +39,6 @@ Check out <a href="https://github.com/hacktoolkit/chrome-extensions">other Chrom
 
 ## License
 
-MIT. See LICENSE.
+MIT. See LICENSE.md.
 
 Logo: Derived from `window-restore` [icon](https://fontawesome.com/icons/window-restore?style=regular) from Font Awesome (License: <https://fontawesome.com/license>).
