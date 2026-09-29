@@ -250,6 +250,79 @@ async function groupWindowByDomain(win, ctx) {
     return { created, grouped };
 }
 
+// ----- MOVING TABS BETWEEN WINDOWS --------------------
+
+// Chrome drops a tab out of its group when the tab alone changes window.
+// Moving the whole group with tabGroups.move keeps it intact, and when the
+// destination already has a group with the same name the tabs join that one.
+async function findEquivalentGroup(windowId, title) {
+    if (!title) {
+        return null;
+    }
+    const groups = await chrome.tabGroups.query({ windowId });
+    return groups.find((g) => (g.title || '').toLowerCase() === title.toLowerCase()) || null;
+}
+
+async function moveTabsPreservingGroups(tabs, targetWindowId) {
+    const ungrouped = tabs.filter((t) => t.groupId === NO_GROUP);
+    if (ungrouped.length > 0) {
+        await chrome.tabs.move(
+            ungrouped.map((t) => t.id),
+            { windowId: targetWindowId, index: -1 }
+        );
+    }
+    const groupIds = [...new Set(tabs.map((t) => t.groupId))].filter((id) => id !== NO_GROUP);
+    let merged = 0;
+    let moved = 0;
+    for (const groupId of groupIds) {
+        const members = tabs.filter((t) => t.groupId === groupId);
+        const tabIds = members.map((t) => t.id);
+        let info = null;
+        try {
+            info = await chrome.tabGroups.get(groupId);
+        } catch (e) {
+            // group already gone; fall through and move the tabs plainly
+        }
+        const equivalent = info ? await findEquivalentGroup(targetWindowId, info.title) : null;
+        if (equivalent) {
+            await chrome.tabs.move(tabIds, { windowId: targetWindowId, index: -1 });
+            await chrome.tabs.group({ groupId: equivalent.id, tabIds });
+            merged += 1;
+            continue;
+        }
+        // only carry the group over whole when every member is being moved;
+        // otherwise the tabs staying behind would be dragged along
+        let keptWhole = false;
+        const wholeGroup = info
+            ? (await chrome.tabs.query({ groupId })).length === members.length
+            : false;
+        if (info && wholeGroup) {
+            try {
+                await chrome.tabGroups.move(groupId, { windowId: targetWindowId, index: -1 });
+                keptWhole = true;
+            } catch (e) {
+                // older Chrome cannot move a group across windows; rebuild it
+            }
+        }
+        if (!keptWhole) {
+            await chrome.tabs.move(tabIds, { windowId: targetWindowId, index: -1 });
+            const newId = await chrome.tabs.group({
+                tabIds,
+                createProperties: { windowId: targetWindowId }
+            });
+            if (info) {
+                await chrome.tabGroups.update(newId, {
+                    title: info.title || '',
+                    color: info.color,
+                    collapsed: !!info.collapsed
+                });
+            }
+        }
+        moved += 1;
+    }
+    return { tabs: tabs.length, groupsMoved: moved, groupsMerged: merged };
+}
+
 // ----- CONSOLIDATE / SPLIT --------------------
 
 async function consolidate({ includePinned }) {
@@ -261,6 +334,8 @@ async function consolidate({ includePinned }) {
     const target =
         focused || windows.slice().sort((a, b) => b.tabs.length - a.tabs.length)[0];
     let moved = 0;
+    let groupsKept = 0;
+    let groupsMerged = 0;
     let pinnedIndex = target.tabs.filter((t) => t.pinned).length;
 
     for (const w of windows) {
@@ -279,17 +354,20 @@ async function consolidate({ includePinned }) {
             }
         }
         if (unpinned.length > 0) {
-            await chrome.tabs.move(
-                unpinned.map((t) => t.id),
-                { windowId: target.id, index: -1 }
-            );
-            moved += unpinned.length;
+            const r = await moveTabsPreservingGroups(unpinned, target.id);
+            moved += r.tabs;
+            groupsKept += r.groupsMoved;
+            groupsMerged += r.groupsMerged;
         }
     }
     await sortWindow(target.id);
     await closeBlankTabsIn(target.id);
+    const groupNote =
+        groupsKept + groupsMerged > 0
+            ? `, kept ${plural(groupsKept, 'group')}${groupsMerged ? ` and merged ${groupsMerged}` : ''}`
+            : '';
     return {
-        message: `Moved ${plural(moved, 'tab')} into one window and sorted it`
+        message: `Moved ${plural(moved, 'tab')} into one window and sorted it${groupNote}`
     };
 }
 
@@ -314,17 +392,13 @@ async function splitWindowsByDomain() {
         .map((list) => list[0])
         .sort(compareTabs);
 
-    // Creating the window with its first tab avoids the blank tab entirely,
-    // and doing it sequentially avoids racing our own cleanup.
+    // Sequential, one window at a time, so our own blank-tab cleanup cannot
+    // race a window whose tabs have not arrived yet. Group membership travels
+    // with the tabs.
     async function newWindowWith(list) {
-        const [first, ...rest] = list;
-        const win = await chrome.windows.create({ tabId: first.id, focused: false });
-        if (rest.length > 0) {
-            await chrome.tabs.move(
-                rest.map((t) => t.id),
-                { windowId: win.id, index: -1 }
-            );
-        }
+        const win = await chrome.windows.create({ focused: false });
+        await moveTabsPreservingGroups(list, win.id);
+        await closeBlankTabsIn(win.id);
         return win;
     }
 
@@ -337,7 +411,6 @@ async function splitWindowsByDomain() {
         await newWindowWith(singles);
         created += 1;
     }
-    await closeBlankTabsEverywhere();
     return { message: `Split ${plural(tabs.length, 'tab')} into ${plural(created, 'window')}` };
 }
 
@@ -518,21 +591,21 @@ export const ACTIONS = [
         id: 'consolidateAll',
         name: 'Consolidate All Tabs',
         group: 'organize',
-        help: 'Moves every tab, pinned ones included, into the current window and sorts it. Tab groups from other windows are not kept.',
+        help: 'Moves every tab, pinned ones included, into the current window and sorts it. Tab groups come along, and a group joins an existing group with the same name.',
         run: () => consolidate({ includePinned: true })
     },
     {
         id: 'consolidateUnpinned',
         name: 'Consolidate Unpinned Tabs',
         group: 'organize',
-        help: 'Moves unpinned tabs into the current window and sorts it. Pinned tabs stay in their windows.',
+        help: 'Moves unpinned tabs into the current window and sorts it. Pinned tabs stay in their windows; tab groups come along.',
         run: () => consolidate({ includePinned: false })
     },
     {
         id: 'splitByDomain',
         name: 'Split Windows by Domain',
         group: 'organize',
-        help: 'One window per site, plus one window for sites with a single tab. Pinned tabs stay where they are. Prefer "Group Tabs by Domain" for a lighter touch.',
+        help: 'One window per site, plus one window for sites with a single tab. Pinned tabs stay where they are and tab groups are kept. Prefer "Group Tabs by Domain" for a lighter touch.',
         run: splitWindowsByDomain
     },
     {

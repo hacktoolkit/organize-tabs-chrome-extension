@@ -1,5 +1,5 @@
 VERSION := $(shell jq < manifest.json .version -r)
-.PHONY: help test check e2e clean package
+.PHONY: help test check e2e dev dev-clean clean package
 
 ## help - Display help about make targets for this Makefile
 help:
@@ -24,3 +24,11 @@ package: clean test
 ## e2e - run the browser end-to-end test (needs Brave or Chromium)
 e2e:
 	node scripts/e2e.mjs
+
+## dev - launch a throwaway browser profile with the extension and sample tabs
+dev:
+	node scripts/dev.mjs
+
+## dev-clean - delete the throwaway dev profile
+dev-clean:
+	rm -rf "$${TMPDIR:-/tmp}/organize-tabs-dev-profile"

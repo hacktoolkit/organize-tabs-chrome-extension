@@ -183,10 +183,21 @@ try {
     await sleep(800);
     check('restore parked', /Restored \d+ tab/.test(restore.message), restore.message);
 
-    // consolidate: create a second window and merge
-    await popup.eval(`chrome.windows.create({ url: ['https://example.org/a', 'https://example.org/b'], focused: false })`);
-    await sleep(800);
-    await popup.eval(`chrome.windows.update(${seedWindow.id}, { focused: true })`);
+    // consolidate: groups must survive the move and merge into same-named groups
+    const winA = await popup.eval(`chrome.windows.create({ url: ['https://example.org/a', 'https://example.org/b', 'https://example.org/c', 'https://foo.test/x'], focused: false })`);
+    const winB = await popup.eval(`chrome.windows.create({ url: ['https://example.org/z', 'https://bar.test/y'], focused: false })`);
+    await sleep(1000);
+    const urlOf = (u) => `(await chrome.tabs.query({ url: ${JSON.stringify(u)} }))[0].id`;
+    await popup.eval(`(async () => {
+        const g1 = await chrome.tabs.group({ tabIds: [${await popup.eval(`(async () => ${urlOf('https://example.org/a')})()`)}, ${await popup.eval(`(async () => ${urlOf('https://example.org/b')})()`)}] });
+        await chrome.tabGroups.update(g1, { title: 'alpha', color: 'blue' });
+        const g2 = await chrome.tabs.group({ tabIds: [${await popup.eval(`(async () => ${urlOf('https://example.org/c')})()`)}, ${await popup.eval(`(async () => ${urlOf('https://foo.test/x')})()`)}] });
+        await chrome.tabGroups.update(g2, { color: 'red' });
+        const g3 = await chrome.tabs.group({ tabIds: [${await popup.eval(`(async () => ${urlOf('https://example.org/z')})()`)}] });
+        await chrome.tabGroups.update(g3, { title: 'alpha', color: 'green' });
+    })()`);
+    await sleep(300);
+    await popup.eval(`chrome.windows.update(${winB.id}, { focused: true })`);
     const before = (await popup.eval(`chrome.windows.getAll({ windowTypes: ['normal'] })`)).length;
     const cons = await send({ type: 'run', action: 'consolidateAll' });
     await sleep(500);
@@ -194,10 +205,30 @@ try {
     check('consolidate reduces windows', afterWin < before, `${before} -> ${afterWin}; ${cons.message}`);
     const pinnedTab = (await tabs()).find((t) => t.url === 'https://github.com/dataro/app/pull/123');
     check('consolidate keeps pinned', pinnedTab && pinnedTab.pinned && pinnedTab.index === 0, JSON.stringify({ pinned: pinnedTab?.pinned, index: pinnedTab?.index }));
+    let allGroups = await groups();
+    let allTabs = await tabs();
+    const alpha = allGroups.filter((g) => g.title === 'alpha');
+    const alphaTabs = alpha.length === 1 ? allTabs.filter((t) => t.groupId === alpha[0].id).map((t) => t.url).sort() : [];
+    check('consolidate merges same-named groups', alpha.length === 1 && alphaTabs.join() === ['https://example.org/a', 'https://example.org/b', 'https://example.org/z'].join(), `${alpha.length} alpha groups: ${alphaTabs.join(', ')}`);
+    const red = allGroups.find((g) => g.color === 'red' && !g.title);
+    const redTabs = red ? allTabs.filter((t) => t.groupId === red.id).map((t) => t.url).sort() : [];
+    check('consolidate keeps untitled group intact', red && redTabs.join() === ['https://example.org/c', 'https://foo.test/x'].join(), redTabs.join(', '));
+    check('all moved tabs live in one window', new Set(allTabs.filter((t) => /example\.org|foo\.test|bar\.test/.test(t.url)).map((t) => t.windowId)).size === 1);
 
     const split = await send({ type: 'run', action: 'splitByDomain' });
     await sleep(800);
     check('split by domain', /Split \d+ tabs into \d+ windows/.test(split.message), split.message);
+    allGroups = await groups();
+    allTabs = await tabs();
+    const alphaAfter = allGroups.filter((g) => g.title === 'alpha');
+    const alphaAfterTabs = alphaAfter.length === 1 ? allTabs.filter((t) => t.groupId === alphaAfter[0].id).map((t) => t.url).sort() : [];
+    check('split keeps the alpha group together', alphaAfter.length === 1 && alphaAfterTabs.join() === ['https://example.org/a', 'https://example.org/b', 'https://example.org/z'].join(), alphaAfterTabs.join(', '));
+    const c = allTabs.find((t) => t.url === 'https://example.org/c');
+    const x = allTabs.find((t) => t.url === 'https://foo.test/x');
+    const cg = c && c.groupId !== -1 ? allGroups.find((g) => g.id === c.groupId) : null;
+    const xg = x && x.groupId !== -1 ? allGroups.find((g) => g.id === x.groupId) : null;
+    check('split keeps tabs of a divided group in same-colored groups', cg && xg && cg.color === 'red' && xg.color === 'red' && c.windowId !== x.windowId, JSON.stringify({ c: cg?.color, x: xg?.color }));
+    check('no blank tabs left by split', allTabs.filter((t) => t.url === 'chrome://newtab/' && allTabs.filter((o) => o.windowId === t.windowId).length > 1).length === 0);
 
     const focus = await send({ type: 'run', action: 'focusAllWindows' });
     check('focus all windows', /Brought \d+ window/.test(focus.message), focus.message);

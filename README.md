@@ -23,9 +23,9 @@ Every action is available from the toolbar popup, the right-click context menu, 
 | **Group Tabs by Domain** | Puts tabs from the same site into a tab group, in every window. Pinned tabs and existing groups are left alone. |
 | **Sort Tabs in Window** | Sorts the current window by site and URL. Pinned tabs stay put, tab groups stay together and are sorted by name. |
 | **Ungroup Tabs in Window** | Removes all tab groups in the current window. |
-| **Consolidate All Tabs** | Moves every tab, pinned ones included, into the current window and sorts it. |
+| **Consolidate All Tabs** | Moves every tab, pinned ones included, into the current window and sorts it. Tab groups come along, and a group joins an existing group with the same name. |
 | **Consolidate Unpinned Tabs** | Same, but pinned tabs stay in their windows. |
-| **Split Windows by Domain** | One window per site, plus one window for the sites with a single tab. The old "Collate" action. |
+| **Split Windows by Domain** | One window per site, plus one window for the sites with a single tab. Tab groups are kept. The old "Collate" action. |
 
 ### Clean up
 
@@ -78,15 +78,27 @@ A remote rules file is either a full export or just `{"rules": [...]}`.
 
 Defaults: `Alt+Shift+O` opens the popup, `Alt+Shift+D` deduplicates, `Alt+Shift+S` sorts the window, `Alt+Shift+G` groups by domain. Every other action can be bound at `chrome://extensions/shortcuts`.
 
+## Tab groups and pinned tabs
+
+No action ever moves a pinned tab out of its place, and no action breaks a tab group:
+
+- **Sort** keeps groups contiguous and sorts them by name, with members sorted inside.
+- **Consolidate** and **Split** move whole groups between windows. When the destination already has a group with the same name, the incoming tabs join it. Untitled groups keep their colour and members.
+- **Group by Domain** adds tabs to an existing group with the matching name instead of creating a second one.
+
 ## Development
 
 ```sh
 git clone git@github.com:hacktoolkit/organize-tabs-chrome-extension.git
 cd organize-tabs-chrome-extension
 make test          # unit tests for the URL and rule logic (node --test)
+make e2e           # headless browser test of every action (needs Brave or Chromium)
+make dev           # open a throwaway browser profile with the extension and sample tabs
 ```
 
-Then in Chrome: `chrome://extensions`, enable Developer mode, **Load unpacked**, pick the folder with `manifest.json`.
+`make dev` launches Brave (or `BROWSER=/path/to/chromium make dev`) with a separate profile, the extension loaded from this folder, and two windows of sample tabs that exercise every rule. The profile persists between runs; `make dev-clean` deletes it. After editing source, reload the extension at `chrome://extensions`.
+
+To use it in your real profile: `chrome://extensions`, enable Developer mode, **Load unpacked**, pick the folder with `manifest.json`. Google Chrome's branded build no longer accepts `--load-extension` on the command line, which is why the scripts default to Brave; loading unpacked through the UI works in every browser.
 
 Layout:
 
