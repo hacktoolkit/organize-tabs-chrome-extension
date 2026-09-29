@@ -1,23 +1,157 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
-  <head>
-    <title>Organize Tabs</title>
-    <style>
-      body { padding: 10px; }
-      label { font-weight: bold; }
-      input { width: 100%; }
-    </style>
-  </head>
+<head>
+    <meta charset="utf-8" />
+    <title>Organize Tabs Settings</title>
+    <link rel="stylesheet" href="ui.css" />
+    <link rel="stylesheet" href="options.css" />
+</head>
+<body>
+    <div class="page">
+        <aside class="side">
+            <div class="brand">
+                <img src="../img/icon32.png" alt="" width="24" height="24" />
+                <div><b>Organize Tabs</b><span id="version" class="muted"></span></div>
+            </div>
+            <nav>
+                <a href="#general" class="on">General</a>
+                <a href="#rules">Duplicate rules</a>
+                <a href="#sync">Sync &amp; backup</a>
+                <a href="#help">Help</a>
+            </nav>
+            <div id="save-state" class="save-state muted"></div>
+        </aside>
 
-  <body>
-    <p>
-      There are no options to configure for Organize Tab at this time.
-    </p>
-    <p>
-      <a href="https://hacktoolkit.github.io/organize-tabs-chrome-extension/" target="_blank">Learn More</a>
-    </p>
+        <main>
+            <section id="general" class="card">
+                <h2>General</h2>
 
-    <script src="vendor/jquery-3.5.1.min.js"></script>
-    <script src="js/options.js"></script>
-  </body>
+                <div class="row">
+                    <div class="lbl"><b>Confirm before closing</b><span>Show a preview list before any action that closes tabs from the popup. The context menu and keyboard shortcuts never show a preview.</span></div>
+                    <label class="switch"><input type="checkbox" id="confirmClose" /><i></i></label>
+                </div>
+                <div class="row">
+                    <div class="lbl"><b>Auto-deduplicate new tabs</b><span>When you open a link that is already open somewhere, close the new tab and jump to the existing one. Uses the duplicate rules.</span></div>
+                    <label class="switch"><input type="checkbox" id="autoDedupe" /><i></i></label>
+                </div>
+                <div class="row">
+                    <div class="lbl"><b>Duplicate count on the toolbar icon</b><span>Keeps the badge updated as tabs open and close.</span></div>
+                    <label class="switch"><input type="checkbox" id="showBadge" /><i></i></label>
+                </div>
+                <div class="row">
+                    <div class="lbl"><b>Which duplicate to keep</b><span>Pinned and active tabs always win. This decides between the rest.</span></div>
+                    <select id="survivorPolicy">
+                        <option value="recent">Most recently viewed</option>
+                        <option value="first">Leftmost tab</option>
+                        <option value="deepest">Most specific page (longest URL)</option>
+                    </select>
+                </div>
+                <div class="row">
+                    <div class="lbl"><b>A tab is stale after</b><span>Used by "Close Stale Tabs" and "Free Memory". Pinned, active and playing tabs are never stale.</span></div>
+                    <div class="inline"><input type="number" id="staleDays" min="0" max="365" /> <span class="muted">days</span></div>
+                </div>
+                <div class="row">
+                    <div class="lbl"><b>Minimum tabs per group</b><span>"Group Tabs by Domain" only creates a group when a site has at least this many tabs in the window.</span></div>
+                    <input type="number" id="minGroupSize" min="1" max="50" />
+                </div>
+                <div class="row">
+                    <div class="lbl"><b>Collapse new groups</b><span>Groups created by "Group Tabs by Domain" start collapsed.</span></div>
+                    <label class="switch"><input type="checkbox" id="collapseGroups" /><i></i></label>
+                </div>
+                <div class="row">
+                    <div class="lbl"><b>Bookmark folder for parked windows</b></div>
+                    <input type="text" id="parkFolderName" />
+                </div>
+
+                <h3>URL normalization</h3>
+                <p class="muted">Two URLs that differ only in these ways count as the same page.</p>
+                <div class="grid">
+                    <label><input type="checkbox" id="n-ignoreScheme" /> http and https</label>
+                    <label><input type="checkbox" id="n-stripWww" /> leading www.</label>
+                    <label><input type="checkbox" id="n-ignoreFragment" /> #fragment</label>
+                    <label><input type="checkbox" id="n-ignoreTrailingSlash" /> trailing slash</label>
+                    <label><input type="checkbox" id="n-sortQueryParams" /> query parameter order</label>
+                    <label><input type="checkbox" id="n-stripTrackingParams" /> tracking parameters</label>
+                </div>
+                <div class="row col">
+                    <div class="lbl"><b>Tracking parameters to ignore</b><span>One per line or comma separated.</span></div>
+                    <textarea id="trackingParams" rows="4" spellcheck="false"></textarea>
+                </div>
+            </section>
+
+            <section id="rules" class="card">
+                <h2>Duplicate rules</h2>
+                <p class="muted">A rule turns many URLs into one key. Tabs with the same key are duplicates, and "Close Tabs Like This One" can close every tab matching a rule. <code>match</code> is a regular expression tested against the full URL and <code>key</code> is a template where <code>$1</code>…<code>$9</code> or <code>${name}</code> insert capture groups.</p>
+
+                <div class="tester">
+                    <input type="url" id="test-url" placeholder="Paste a URL to see which rule matches and the key it produces" spellcheck="false" />
+                    <div id="test-result" class="muted"></div>
+                </div>
+
+                <div id="rule-list" class="rules"></div>
+                <div class="toolbar">
+                    <button id="rule-add" class="primary">Add rule</button>
+                    <button id="rule-json">Edit as JSON</button>
+                    <button id="rule-reset">Reset to built-in rules</button>
+                </div>
+                <div id="rule-json-editor" class="json-editor" hidden>
+                    <textarea id="rule-json-text" rows="18" spellcheck="false"></textarea>
+                    <div class="toolbar">
+                        <button id="rule-json-apply" class="primary">Apply</button>
+                        <button id="rule-json-cancel">Cancel</button>
+                        <span id="rule-json-error" class="pill warn" hidden></span>
+                    </div>
+                </div>
+                <div id="remote-rule-list" class="remote-rules" hidden>
+                    <h3>Rules from the remote file</h3>
+                    <p class="muted">Read-only. A local rule with the same name overrides a remote one.</p>
+                    <div class="rules"></div>
+                </div>
+            </section>
+
+            <section id="sync" class="card">
+                <h2>Sync &amp; backup</h2>
+                <p class="muted">Settings and rules are saved to your browser profile's sync storage, so they follow you to every machine signed into the same Chrome or Brave profile. <span id="sync-status"></span></p>
+
+                <h3>Export and import</h3>
+                <p class="muted">Move settings between profiles that do not sync with each other, or keep a copy in your dotfiles.</p>
+                <div class="toolbar">
+                    <button id="export" class="primary">Download settings JSON</button>
+                    <button id="copy">Copy to clipboard</button>
+                    <button id="import">Import from file…</button>
+                    <input type="file" id="import-file" accept="application/json,.json" hidden />
+                </div>
+                <div class="row col">
+                    <div class="lbl"><b>Or paste JSON here</b></div>
+                    <textarea id="import-text" rows="5" spellcheck="false" placeholder='{"settings": {...}, "rules": [...]}'></textarea>
+                    <div class="toolbar"><button id="import-apply">Import pasted JSON</button><span id="import-result" class="muted"></span></div>
+                </div>
+
+                <h3>Remote rules file</h3>
+                <p class="muted">Point at a JSON file you host, for example a raw file in a dotfiles repo or a gist. Its rules are merged in after your local rules and refreshed on a schedule. The file must be reachable without login.</p>
+                <div class="row col">
+                    <input type="url" id="remoteRulesUrl" placeholder="https://raw.githubusercontent.com/you/dotfiles/main/organize-tabs-rules.json" spellcheck="false" />
+                    <div class="inline">
+                        <span class="muted">Refresh every</span>
+                        <input type="number" id="remoteRefreshHours" min="1" max="720" />
+                        <span class="muted">hours</span>
+                        <button id="remote-fetch">Fetch now</button>
+                        <span id="remote-status" class="muted"></span>
+                    </div>
+                </div>
+            </section>
+
+            <section id="help" class="card">
+                <h2>Help</h2>
+                <div id="help-list" class="help-list"></div>
+                <h3>Keyboard shortcuts</h3>
+                <p class="muted">Shortcuts are managed by the browser. <a href="#" id="open-shortcuts">Open the shortcuts page</a> to change them.</p>
+                <div id="shortcut-list" class="help-list"></div>
+                <h3>About</h3>
+                <p class="muted">Organize Tabs is open source under the MIT license. <a href="https://github.com/hacktoolkit/organize-tabs-chrome-extension" target="_blank" rel="noopener">Source, issues and rule contributions on GitHub</a>.</p>
+            </section>
+        </main>
+    </div>
+    <script type="module" src="options.js"></script>
+</body>
 </html>

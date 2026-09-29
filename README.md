@@ -1,44 +1,126 @@
-# Organize Tabs Google Chrome Extension
+# Organize Tabs
 
-This plugin enables the following operations:
+A Chrome extension for people who keep a lot of tabs open. It groups, sorts, deduplicates and tidies tabs across every window, and it understands that a pull request, a ticket, a profile or a document is the same page even when the URL differs.
 
-- **Collate Tabs** - Groups all tabs into separate windows, grouped by hostname, and sorted by URL. Ignores windows with pinned tabs.
-- **Consolidate Tabs** - Combines all tabs across all windows into one window, sorted by URL. Ignores windows with pinned tabs.
-- **Deduplicate Tabs** - Enumerates through all tabs, and keeps only the first copy of a tab with a unique URL, and closes the remaining tabs with duplicate URLs. Recommend running this *after* running **Collate Tabs**.
-- **Sort Tabs in Window** - Sorts tabs in current window by URL.
-- **Close All Tabs from this Domain** - Close all tabs opened to the same domain/host as the current tab.
-- **Close Blank Tabs** - Closes all blank tabs.
-- **Bring All Windows To Front** - Focuses all windows in session and tiles them. Useful for rediscovering misplaced windows.
+Vanilla JavaScript, no build step, no dependencies. Works in Chrome, Brave, Edge and other Chromium browsers (Chrome 121 or newer).
 
-Available on the Google Chrome Webstore: <https://chrome.google.com/webstore/detail/organize-tabs/ebnlpacdgjnofakgfgbildmjdhbibnpa>
+Chrome Web Store: <https://chrome.google.com/webstore/detail/organize-tabs/ebnlpacdgjnofakgfgbildmjdhbibnpa>
 
-## Screenshots
+<p>
+  <img src="promo/popup.png" width="300" alt="Popup" />
+  <img src="promo/preview.png" width="300" alt="Preview before closing duplicates" />
+  <img src="promo/popup-help.png" width="300" alt="Popup with inline help" />
+</p>
 
-![image](https://github.com/hacktoolkit/organize-tabs-chrome-extension/raw/master/promo/screenshot1.png)
+## Actions
 
-## Development and Testing
+Every action is available from the toolbar popup, the right-click context menu, and (optionally) a keyboard shortcut. Actions that close tabs show a preview first, and the last close can always be undone.
 
-1. Clone this repository locally.
-1. In Google Chrome, go to `Manage Extensions` (<chrome://extensions/>).
-1. Enable `Developer mode`.
-1. Press `Load unpacked` and navigate to the folder with `manifest.json`, and `Select`.
-1. Voilà!
+### Organize
+
+| Action | What it does |
+| --- | --- |
+| **Group Tabs by Domain** | Puts tabs from the same site into a tab group, in every window. Pinned tabs and existing groups are left alone. |
+| **Sort Tabs in Window** | Sorts the current window by site and URL. Pinned tabs stay put, tab groups stay together and are sorted by name. |
+| **Ungroup Tabs in Window** | Removes all tab groups in the current window. |
+| **Consolidate All Tabs** | Moves every tab, pinned ones included, into the current window and sorts it. |
+| **Consolidate Unpinned Tabs** | Same, but pinned tabs stay in their windows. |
+| **Split Windows by Domain** | One window per site, plus one window for the sites with a single tab. The old "Collate" action. |
+
+### Clean up
+
+| Action | What it does |
+| --- | --- |
+| **Deduplicate Tabs** | Closes tabs that point at the same thing, using the duplicate rules below. Keeps the pinned, active, or most recently viewed copy. |
+| **Close Tabs Like This One** | Closes tabs from the same domain, the same section of the site, or the same kind of page (all pull requests, all LinkedIn profiles). |
+| **Close Stale Tabs** | Closes tabs you have not looked at for N days. Pinned, active and playing tabs are skipped. |
+| **Free Memory** | Unloads stale tabs from memory without closing them. |
+| **Close Blank Tabs** | Closes empty new-tab pages everywhere. |
+| **Park Window to Bookmarks** | Saves the current window's tabs into a dated bookmark folder and closes them. |
+| **Restore Last Parked** | Reopens the most recently parked folder as a tab group. |
+
+### Windows
+
+| Action | What it does |
+| --- | --- |
+| **Bring All Windows to Front** | Focuses and cascades every window so misplaced ones reappear. |
+| **Undo Last Close** | Reopens whatever the last action closed. |
+
+## Duplicate rules
+
+Two URLs are duplicates when they produce the same **key**. Without a rule, the key is the URL with the scheme, `www.`, fragment, trailing slash, tracking parameters and query-parameter order normalized away. With a rule, many URLs collapse to one key:
+
+```json
+{
+    "name": "GitHub pull request",
+    "match": "^https?://github\\.com/([^/]+)/([^/]+)/pull/(\\d+)",
+    "key": "github:$1/$2/pull/$3"
+}
+```
+
+That rule makes `/pull/123`, `/pull/123/files`, `/pull/123/commits/abc` and `/pull/123#discussion_r1` the same tab. Built-in rules cover GitHub, Bitbucket, GitLab, Jira, Confluence, LinkedIn, YouTube, Google Docs and Drive, Notion, HubSpot, Slack, Figma, Amazon, Stack Overflow, Reddit and X. Add your own in Settings, where a tester shows which rule a URL hits.
+
+The same rules power **Close Tabs Like This One**, so from any pull request you can close every open pull request with one click.
+
+**Auto-deduplicate** (off by default) watches new tabs. When you open a link that is already open, the new tab is closed and the existing one focused.
+
+## Settings, sync and backup
+
+Open Settings from the popup or from `chrome://extensions`.
+
+- Preferences and rules are stored in `chrome.storage.sync`, so they follow a signed-in Chrome or Brave profile across machines.
+- **Export** downloads a JSON file with everything. **Import** reads it back, on any profile.
+- **Remote rules file**: point at a JSON file you host (a raw file in a dotfiles repo works well). Its rules are merged in after your local ones and refreshed on a schedule.
+
+A remote rules file is either a full export or just `{"rules": [...]}`.
+
+## Keyboard shortcuts
+
+Defaults: `Alt+Shift+O` opens the popup, `Alt+Shift+D` deduplicates, `Alt+Shift+S` sorts the window, `Alt+Shift+G` groups by domain. Every other action can be bound at `chrome://extensions/shortcuts`.
+
+## Development
+
+```sh
+git clone git@github.com:hacktoolkit/organize-tabs-chrome-extension.git
+cd organize-tabs-chrome-extension
+make test          # unit tests for the URL and rule logic (node --test)
+```
+
+Then in Chrome: `chrome://extensions`, enable Developer mode, **Load unpacked**, pick the folder with `manifest.json`.
+
+Layout:
+
+```
+manifest.json
+src/background.js      service worker: message router, context menus, shortcuts, auto-dedupe, badge
+src/lib/url.js         pure URL logic: normalization, rules, duplicate detection, sorting (tested)
+src/lib/settings.js    storage.sync persistence, export/import, remote rules
+src/lib/actions.js     the action registry and everything that touches the tabs API
+src/popup.*            toolbar popup
+src/options.*          settings page
+test/                  node --test suites
+```
+
+All tab operations run in the service worker. The popup only sends messages, because Chrome closes the popup as soon as a new window is created or focused.
 
 ## Building and publishing
 
-See: https://developer.chrome.com/webstore/publish
+```sh
+make package       # organize_tabs-<version>.zip
+```
 
+See <https://developer.chrome.com/webstore/publish>.
 
 ## Contributing
 
-Contributions are welcome. Please fork the repository and submit a pull request from your local branch.
+Contributions are welcome, especially new duplicate rules with tests in `test/url.test.js`. Fork the repository and open a pull request.
 
 ## Support
 
-Check out <a href="https://github.com/hacktoolkit/chrome-extensions">other Chrome extensions</a> made by Hacktoolkit!
+Check out <a href="https://github.com/hacktoolkit/chrome-extensions">other Chrome extensions</a> made by Hacktoolkit.
 
 ## License
 
 MIT. See LICENSE.md.
 
-Logo: Derived from `window-restore` [icon](https://fontawesome.com/icons/window-restore?style=regular) from Font Awesome (License: <https://fontawesome.com/license>).
+Logo: derived from the `window-restore` [icon](https://fontawesome.com/icons/window-restore?style=regular) from Font Awesome (License: <https://fontawesome.com/license>).

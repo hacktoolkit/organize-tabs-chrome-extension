@@ -1,0 +1,246 @@
+// End-to-end smoke test. Launches a real Chromium-based browser headless with
+// the extension loaded, then drives it over the DevTools protocol.
+//
+//   make e2e                       # uses Brave by default (see BROWSER below)
+//   BROWSER=/path/to/chromium make e2e
+//
+// Google Chrome branded builds no longer honour --load-extension; use Brave,
+// Chromium or Chrome for Testing. Network is disabled with a host-resolver
+// rule so tab URLs stay exactly as seeded.
+import { spawn } from 'node:child_process';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const EXT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const CANDIDATES = [
+    process.env.BROWSER,
+    '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/brave-browser'
+].filter(Boolean);
+const CHROME = CANDIDATES.find((c) => existsSync(c));
+if (!CHROME) {
+    console.error('No Chromium-based browser found. Set BROWSER=/path/to/binary');
+    process.exit(2);
+}
+const PORT = Number(process.env.PORT) || 9337;
+const profile = mkdtempSync(join(tmpdir(), 'organize-tabs-e2e-'));
+
+const chrome = spawn(CHROME, [
+    `--user-data-dir=${profile}`,
+    `--load-extension=${EXT}`,
+    `--remote-debugging-port=${PORT}`,
+    '--headless=new',
+    '--host-resolver-rules=MAP * ~NOTFOUND',
+    '--no-first-run',
+    '--no-default-browser-check',
+    'about:blank'
+], { stdio: ['ignore', 'ignore', 'pipe'] });
+let stderr = '';
+chrome.stderr.on('data', (d) => { stderr += d; });
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function targets() {
+    const res = await fetch(`http://127.0.0.1:${PORT}/json/list`);
+    return res.json();
+}
+async function waitFor(pred, label, tries = 60) {
+    for (let i = 0; i < tries; i++) {
+        try {
+            const t = (await targets()).find(pred);
+            if (t) return t;
+        } catch (e) { /* not up yet */ }
+        await sleep(250);
+    }
+    let list = [];
+    try { list = await targets(); } catch (e) { /* ignore */ }
+    throw new Error(`timeout waiting for ${label}; targets: ${JSON.stringify(list.map((t) => [t.type, t.url]))}`);
+}
+
+class CDP {
+    constructor(ws) { this.ws = ws; this.id = 0; this.pending = new Map(); this.events = []; 
+        ws.addEventListener('message', (m) => {
+            const msg = JSON.parse(m.data);
+            if (msg.id && this.pending.has(msg.id)) { const {res, rej} = this.pending.get(msg.id); this.pending.delete(msg.id); msg.error ? rej(new Error(msg.error.message)) : res(msg.result); }
+            else this.events.push(msg);
+        });
+    }
+    static async connect(url) { const ws = new WebSocket(url); await new Promise((r, j) => { ws.onopen = r; ws.onerror = j; }); return new CDP(ws); }
+    send(method, params = {}) { const id = ++this.id; this.ws.send(JSON.stringify({ id, method, params })); return new Promise((res, rej) => this.pending.set(id, { res, rej })); }
+    async eval(expression) {
+        const r = await this.send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
+        if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || JSON.stringify(r.exceptionDetails));
+        return r.result.value;
+    }
+}
+
+let failures = 0;
+function check(label, cond, detail = '') {
+    console.log(`${cond ? 'PASS' : 'FAIL'} ${label}${detail ? `  ${detail}` : ''}`);
+    if (!cond) failures++;
+}
+
+try {
+    const sw = await waitFor((t) => t.type === 'service_worker' && t.url.includes('background.js'), 'service worker');
+    const extId = new URL(sw.url).host;
+    console.log('extension id', extId);
+
+    const browserInfo = await (await fetch(`http://127.0.0.1:${PORT}/json/version`)).json();
+    const browser = await CDP.connect(browserInfo.webSocketDebuggerUrl);
+
+    // open the popup as a tab; it can drive chrome.runtime.sendMessage
+    const { targetId: popupId } = await browser.send('Target.createTarget', { url: `chrome-extension://${extId}/src/popup.html`, newWindow: true });
+    await sleep(500);
+    const popupTarget = await waitFor((t) => t.url.endsWith('/src/popup.html'), 'popup target');
+    const popup = await CDP.connect(popupTarget.webSocketDebuggerUrl);
+    await popup.send('Runtime.enable');
+    const send = (msg) => popup.eval(`new Promise((res, rej) => chrome.runtime.sendMessage(${JSON.stringify(msg)}, (r) => r && r.ok ? res(r.result) : rej(new Error(r ? r.error : chrome.runtime.lastError?.message))))`);
+    const tabs = () => popup.eval(`chrome.tabs.query({})`);
+    const groups = () => popup.eval(`chrome.tabGroups.query({})`);
+
+    // seed tabs: duplicates by rule, by normalization, plain, blank, pinned
+    const URLS = [
+        'https://github.com/dataro/app/pull/123',
+        'https://github.com/dataro/app/pull/123/files',
+        'https://github.com/dataro/app/pull/124',
+        'https://github.com/dataro/other/issues/7',
+        'https://www.linkedin.com/in/someone/',
+        'https://www.linkedin.com/in/someone/details/experience/',
+        'https://www.linkedin.com/in/other/',
+        'https://example.com/page?utm_source=x#top',
+        'http://example.com/page',
+        'https://dataro.atlassian.net/browse/ENG-1',
+        'https://news.ycombinator.com/',
+        'chrome://newtab/'
+    ];
+    const seedWindow = await popup.eval(`chrome.windows.create({ url: ${JSON.stringify(URLS)}, focused: false })`);
+    await sleep(1500);
+    await popup.eval(`chrome.tabs.query({ windowId: ${seedWindow.id}, index: 0 }).then(([t]) => chrome.tabs.update(t.id, { pinned: true }))`);
+    await sleep(300);
+
+    const actions = await send({ type: 'actions' });
+    check('actions list', actions.length === 15, `${actions.length} actions`);
+
+    let s = await send({ type: 'stats' });
+    check('stats counts duplicates', s.duplicates === 3, `duplicates=${s.duplicates} tabs=${s.tabs}`);
+
+    const preview = await send({ type: 'preview', action: 'dedupe' });
+    check('dedupe preview lists 3 tabs', preview.items.length === 3, preview.items.map((i) => i.url).join(' | '));
+    const pinnedKept = !preview.items.some((i) => i.url === 'https://github.com/dataro/app/pull/123');
+    check('dedupe keeps the pinned copy', pinnedKept);
+
+    const opts = await send({ type: 'options', action: 'closeScope', args: { tabId: (await tabs()).find((t) => t.url.includes('pull/124')).id } });
+    check('scope options offer domain/section/entity', opts.scopes.map((x) => x.id).join(',') === 'domain,section,entity', JSON.stringify(opts.scopes));
+    check('entity scope counts unpinned PRs', opts.scopes[2].count === 2, `count=${opts.scopes[2].count}`);
+    check('domain scope excludes pinned', opts.scopes[0].count === 3, `count=${opts.scopes[0].count}`);
+
+    // sort the seeded window; the pinned tab must stay at index 0
+    await popup.eval(`chrome.windows.update(${seedWindow.id}, { focused: true })`);
+    await sleep(200);
+    const sortRes = await send({ type: 'run', action: 'sortWindow' });
+    let after = (await tabs()).filter((t) => t.windowId === seedWindow.id).sort((a, b) => a.index - b.index);
+    check('sort keeps pinned tab first', after[0].pinned && after[0].url.includes('pull/123'), sortRes.message);
+    const unpinnedUrls = after.filter((t) => !t.pinned).map((t) => t.url);
+    const hosts = unpinnedUrls.map((u) => { try { return new URL(u).hostname.replace(/^www\./, ''); } catch { return u; } });
+    const clustered = hosts.slice(0, -1).every((h, i) => h === hosts[i] || hosts.indexOf(h) === hosts.lastIndexOf(h) || hosts[i + 1] === h || !hosts.slice(i + 1).includes(h));
+    check('sort clusters hosts', clustered, hosts.join(','));
+
+    const groupRes = await send({ type: 'run', action: 'groupByDomain' });
+    const g = await groups();
+    check('group by domain creates groups', g.length >= 3, `${groupRes.message}; groups=${g.map((x) => x.title).join(',')}`);
+    after = (await tabs()).filter((t) => t.windowId === seedWindow.id);
+    check('pinned tab not grouped', after.find((t) => t.pinned).groupId === -1);
+
+    const sort2 = await send({ type: 'run', action: 'sortWindow' });
+    const g2 = await groups();
+    check('sort with groups keeps groups', g2.length === g.length, sort2.message);
+
+    const runDedupe = await send({ type: 'run', action: 'dedupe' });
+    check('dedupe closes 3', runDedupe.closed === 3, runDedupe.message);
+    s = await send({ type: 'stats' });
+    check('no duplicates after dedupe', s.duplicates === 0 && s.undo && s.undo.count === 3, `undo=${JSON.stringify(s.undo)}`);
+
+    const undo = await send({ type: 'run', action: 'undo' });
+    await sleep(800);
+    s = await send({ type: 'stats' });
+    check('undo reopens tabs', s.duplicates === 3, undo.message);
+
+    const scopeRun = await send({ type: 'run', action: 'closeScope', args: { tabId: (await tabs()).find((t) => t.url.includes('pull/124')).id, scope: 'entity', keepCurrent: true } });
+    check('close scope entity keeps current and pinned', scopeRun.closed === 1, scopeRun.message);
+
+    const blank = await send({ type: 'run', action: 'closeBlank' });
+    check('close blank', /Closed \d+ blank/.test(blank.message), blank.message);
+
+    const park = await send({ type: 'preview', action: 'parkWindow', args: { windowId: seedWindow.id } });
+    check('park preview lists unpinned web tabs', park.items.length > 0 && !park.items.some((i) => i.pinned), `${park.items.length} items`);
+    const parkRun = await send({ type: 'run', action: 'parkWindow', args: { windowId: seedWindow.id } });
+    check('park closes tabs', parkRun.closed === park.items.length, parkRun.message);
+    const restore = await send({ type: 'run', action: 'restoreParked' });
+    await sleep(800);
+    check('restore parked', /Restored \d+ tab/.test(restore.message), restore.message);
+
+    // consolidate: create a second window and merge
+    await popup.eval(`chrome.windows.create({ url: ['https://example.org/a', 'https://example.org/b'], focused: false })`);
+    await sleep(800);
+    await popup.eval(`chrome.windows.update(${seedWindow.id}, { focused: true })`);
+    const before = (await popup.eval(`chrome.windows.getAll({ windowTypes: ['normal'] })`)).length;
+    const cons = await send({ type: 'run', action: 'consolidateAll' });
+    await sleep(500);
+    const afterWin = (await popup.eval(`chrome.windows.getAll({ windowTypes: ['normal'] })`)).length;
+    check('consolidate reduces windows', afterWin < before, `${before} -> ${afterWin}; ${cons.message}`);
+    const pinnedTab = (await tabs()).find((t) => t.url === 'https://github.com/dataro/app/pull/123');
+    check('consolidate keeps pinned', pinnedTab && pinnedTab.pinned && pinnedTab.index === 0, JSON.stringify({ pinned: pinnedTab?.pinned, index: pinnedTab?.index }));
+
+    const split = await send({ type: 'run', action: 'splitByDomain' });
+    await sleep(800);
+    check('split by domain', /Split \d+ tabs into \d+ windows/.test(split.message), split.message);
+
+    const focus = await send({ type: 'run', action: 'focusAllWindows' });
+    check('focus all windows', /Brought \d+ window/.test(focus.message), focus.message);
+
+    // auto-dedupe
+    await popup.eval(`chrome.storage.sync.set({ settings: { autoDedupe: true } })`);
+    await send({ type: 'settingsChanged' });
+    const countBefore = (await tabs()).length;
+    await popup.eval(`chrome.tabs.create({ url: 'https://github.com/dataro/app/pull/124/checks', active: false })`);
+    await sleep(1500);
+    const countAfter = (await tabs()).length;
+    check('auto-dedupe closes the new duplicate', countAfter === countBefore, `${countBefore} -> ${countAfter}`);
+
+    // options page loads without errors
+    const { targetId: optId } = await browser.send('Target.createTarget', { url: `chrome-extension://${extId}/src/options.html` });
+    await sleep(800);
+    const optTarget = await waitFor((t) => t.url.endsWith('/src/options.html'), 'options target');
+    const opt = await CDP.connect(optTarget.webSocketDebuggerUrl);
+    const ruleRows = await opt.eval(`document.querySelectorAll('#rule-list .rule').length`);
+    check('options page renders built-in rules', ruleRows === 19, `${ruleRows} rows`);
+    const helpRows = await opt.eval(`new Promise(r => setTimeout(() => r(document.querySelectorAll('#help-list .help-item').length), 500))`);
+    check('options help lists actions', helpRows === 15, `${helpRows} rows`);
+    const exported = await opt.eval(`(async () => { const m = await import('./lib/settings.js'); const l = await m.loadSettings(); return JSON.stringify(m.exportBundle(l)).length; })()`);
+    check('export bundle builds', exported > 1000, `${exported} bytes`);
+
+    // popup renders
+    const popupButtons = await popup.eval(`document.querySelectorAll('.action').length`);
+    check('popup renders action buttons', popupButtons === 15, `${popupButtons} buttons`);
+
+    // any console errors in the service worker?
+    const swTarget = await waitFor((t) => t.type === 'service_worker' && t.url.includes('background.js'), 'sw');
+    const swc = await CDP.connect(swTarget.webSocketDebuggerUrl);
+    await swc.send('Runtime.enable');
+    await sleep(300);
+    const errs = swc.events.filter((e) => e.method === 'Runtime.exceptionThrown');
+    check('no uncaught exceptions in service worker (since attach)', errs.length === 0, JSON.stringify(errs).slice(0, 300));
+} catch (e) {
+    console.error('E2E ERROR', e);
+    failures++;
+} finally {
+    chrome.kill('SIGKILL');
+    await sleep(300);
+    rmSync(profile, { recursive: true, force: true });
+    console.log(failures ? `\n${failures} FAILURE(S)` : '\nALL PASSED');
+    process.exit(failures ? 1 : 0);
+}

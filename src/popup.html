@@ -1,62 +1,46 @@
 <!doctype html>
-<!--
- This page is shown when the extension button is clicked, because the
- "browser_action" field in manifest.json contains the "default_popup" key with
- value "popup.html".
- -->
 <html>
-  <head>
+<head>
+    <meta charset="utf-8" />
     <title>Organize Tabs</title>
-    <link rel="stylesheet" type="text/css" href="vendor/bootstrap-4.5.2.min.css" />
-    <style>
-      body {
-        width: 300px;
-        background-color: #111111;
-        color: #ffffff;
-        text-align: center;
-        padding: 20px 0px;
-      }
-      #status {
-        /* avoid an excessively wide status text */
-        white-space: pre;
-        text-overflow: ellipsis;
-        overflow: hidden;
-        max-width: 400px;
-      }
-    </style>
-  </head>
-  <body>
-    <h4>Organize Tabs</h4>
+    <link rel="stylesheet" href="ui.css" />
+    <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+    <header class="head">
+        <img src="../img/icon32.png" alt="" width="20" height="20" />
+        <div class="head-text">
+            <h1>Organize Tabs</h1>
+            <div id="stats" class="stats muted">Counting tabs…</div>
+        </div>
+        <button id="help-toggle" class="ghost icon" title="Show descriptions" aria-label="Toggle help">?</button>
+    </header>
 
-    Choose an action:
+    <main id="main">
+        <div id="actions"></div>
+    </main>
 
-    <div style="padding: 20px 0px;">
-      <div class="btn-group-vertical">
-        <a class="btn btn-light collate-tabs" href="javascript:void(0);">Collate Tabs</a>
-        <a class="btn btn-light consolidate-all-tabs" href="javascript:void(0);">Consolidate All Tabs</a>
-        <a class="btn btn-light consolidate-pinned-tabs" href="javascript:void(0);">Consolidate Pinned vs Unpinned Tabs</a>
-        <a class="btn btn-light deduplicate-tabs" href="javascript:void(0);">Deduplicate Tabs</a>
-        <a class="btn btn-light sort-window-tabs" href="javascript:void(0);">Sort Tabs in Window</a>
-        <a class="btn btn-light close-domain-tabs" href="javascript:void(0);">Close All Tabs from this Domain</a>
-        <!--<a class="btn btn-light close-orphans" href="javascript:void(0);">Close Orphans</a>-->
-        <a class="btn btn-light close-blank-tabs" href="javascript:void(0);">Close Blank Tabs</a>
-        <a class="btn btn-light focus-all-windows" href="javascript:void(0);">Bring All Windows To Front</a>
-      </div>
-    </div>
+    <section id="panel" class="panel" hidden>
+        <div class="panel-head">
+            <div id="panel-title" class="panel-title"></div>
+            <button id="panel-close" class="ghost icon" aria-label="Close">×</button>
+        </div>
+        <div id="panel-body"></div>
+        <div class="panel-foot">
+            <button id="panel-cancel">Cancel</button>
+            <button id="panel-confirm" class="danger">Close tabs</button>
+        </div>
+    </section>
 
-    <p>
-      <a href="https://hacktoolkit.github.io/organize-tabs-chrome-extension/" target="_blank">Learn More</a>
-    </p>
+    <footer class="foot">
+        <button id="undo" class="ghost" hidden>Undo</button>
+        <span class="spacer"></span>
+        <a href="#" id="open-options">Settings</a>
+        <a href="https://github.com/hacktoolkit/organize-tabs-chrome-extension#readme" target="_blank" rel="noopener">Help</a>
+    </footer>
 
-    <!--
-      - JavaScript and HTML must be in separate files: see our Content Security
-      - Policy documentation[1] for details and explanation.
-      -
-      - [1]: https://developer.chrome.com/extensions/contentSecurityPolicy
-     -->
-    <srript src="vendor/bootstrap-4.5.2.min.js"></script>
-    <script src="js/organize_tabs.js"></script>
-    <script src="js/popup.js"></script>
+    <div id="toast" class="toast" hidden></div>
 
-  </body>
+    <script type="module" src="popup.js"></script>
+</body>
 </html>
