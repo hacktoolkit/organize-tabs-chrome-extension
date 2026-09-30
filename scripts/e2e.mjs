@@ -13,7 +13,8 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const EXT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+// EXT= points the suite at another folder, e.g. an unzipped package
+const EXT = process.env.EXT || resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CANDIDATES = [
     process.env.BROWSER,
     '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',

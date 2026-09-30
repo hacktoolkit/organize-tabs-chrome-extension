@@ -17,9 +17,9 @@ check:
 clean:
 	rm -f *.zip
 
-## package - creates a new package
+## package - build organize_tabs-<version>.zip for the Chrome Web Store (or Load unpacked after unzipping)
 package: clean test
-	7z a organize_tabs-${VERSION}.zip `cat FILES`
+	zip -r -X organize_tabs-${VERSION}.zip `cat FILES` -x '*.DS_Store'
 
 ## e2e - run the browser end-to-end test (needs Brave or Chromium)
 e2e:

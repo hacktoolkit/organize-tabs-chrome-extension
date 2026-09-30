@@ -128,6 +128,8 @@ All tab operations run in the service worker. The popup only sends messages, bec
 make package       # organize_tabs-<version>.zip
 ```
 
+CI also attaches the zip to every run as the `organize-tabs-zip` artifact (Actions tab, pick a run, Artifacts). To try a build on another machine without cloning: download it, unzip, then `chrome://extensions` → Developer mode → **Load unpacked** → pick the unzipped folder.
+
 See <https://developer.chrome.com/webstore/publish>.
 
 ## Contributing
