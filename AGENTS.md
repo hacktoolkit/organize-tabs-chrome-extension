@@ -47,6 +47,8 @@ Browser testing never touches a real profile. Automated and interactive runs use
 
 Agents may launch, inspect and destroy anything under `~/.holodeck/` without asking.
 
+CI (`.github/workflows/ci.yml`) runs `make check`, `make test` on Node 22 and 24, and `make e2e` on Ubuntu with Chrome for Testing from `@puppeteer/browsers`. When `CI` is set the e2e script adds `--no-sandbox` and friends for containers.
+
 ## Releasing
 
 Bump `version` in `manifest.json`, run `make package`, upload the zip to the Chrome Web Store dashboard.

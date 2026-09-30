@@ -39,6 +39,8 @@ const chrome = spawn(CHROME, [
     `--remote-debugging-port=${PORT}`,
     '--headless=new',
     '--host-resolver-rules=MAP * ~NOTFOUND',
+    // CI containers have no user namespaces or /dev/shm to speak of
+    ...(process.env.CI ? ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu'] : []),
     '--no-first-run',
     '--no-default-browser-check',
     'about:blank'
@@ -87,9 +89,27 @@ function check(label, cond, detail = '') {
     if (!cond) failures++;
 }
 
+// Browsers ship built-in extensions with service workers of their own, so
+// identify ours by manifest name rather than by URL shape.
+async function findExtensionId(tries = 60) {
+    for (let i = 0; i < tries; i++) {
+        let list = [];
+        try { list = await targets(); } catch (e) { /* not up yet */ }
+        for (const t of list.filter((t) => t.type === 'service_worker' && t.url.endsWith('/src/background.js'))) {
+            try {
+                const cdp = await CDP.connect(t.webSocketDebuggerUrl);
+                const name = await cdp.eval('chrome.runtime.getManifest().name');
+                cdp.ws.close();
+                if (name === 'Organize Tabs') return new URL(t.url).host;
+            } catch (e) { /* try the next one */ }
+        }
+        await sleep(250);
+    }
+    throw new Error(`timeout waiting for the Organize Tabs service worker\n${stderr.split('\n').slice(-5).join('\n')}`);
+}
+
 try {
-    const sw = await waitFor((t) => t.type === 'service_worker' && t.url.includes('background.js'), 'service worker');
-    const extId = new URL(sw.url).host;
+    const extId = await findExtensionId();
     console.log('extension id', extId);
 
     const browserInfo = await (await fetch(`http://127.0.0.1:${PORT}/json/version`)).json();
@@ -262,7 +282,7 @@ try {
     check('popup renders action buttons', popupButtons === 15, `${popupButtons} buttons`);
 
     // any console errors in the service worker?
-    const swTarget = await waitFor((t) => t.type === 'service_worker' && t.url.includes('background.js'), 'sw');
+    const swTarget = await waitFor((t) => t.type === 'service_worker' && t.url.startsWith(`chrome-extension://${extId}/`), 'sw');
     const swc = await CDP.connect(swTarget.webSocketDebuggerUrl);
     await swc.send('Runtime.enable');
     await sleep(300);

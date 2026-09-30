@@ -96,6 +96,13 @@ make e2e           # headless browser test of every action (needs Brave or Chrom
 make dev           # open a throwaway browser profile with the extension and sample tabs
 ```
 
+CI runs both suites on every push and pull request (`.github/workflows/ci.yml`): unit tests on Node 22 and 24, and the e2e suite on Ubuntu with Chrome for Testing installed via `@puppeteer/browsers`. To use that same browser locally instead of Brave:
+
+```sh
+npx --yes @puppeteer/browsers install chrome@stable --path ~/.holodeck/browsers
+BROWSER="<path printed above>" make e2e
+```
+
 `make dev` launches the **holodeck**: Brave (or `BROWSER=/path/to/chromium make dev`) on a throwaway profile at `~/.holodeck/brave`, named "🧪 holodeck" in the profile chip, with the extension loaded from this folder and two windows of sample tabs that exercise every rule. The profile persists between runs so settings, parked bookmarks and shortcuts survive; `make dev-clean` deletes it. `make e2e` uses a fresh profile under `~/.holodeck/tmp` that is removed when the run ends. Nothing under `~/.holodeck` is real, so humans and AI agents can trash it freely. After editing source, reload the extension at `chrome://extensions`.
 
 To use it in your real profile: `chrome://extensions`, enable Developer mode, **Load unpacked**, pick the folder with `manifest.json`. Google Chrome's branded build no longer accepts `--load-extension` on the command line, which is why the scripts default to Brave; loading unpacked through the UI works in every browser.
