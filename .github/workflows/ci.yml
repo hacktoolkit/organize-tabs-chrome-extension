@@ -1,0 +1,58 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  unit:
+    name: Unit tests (node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: make check
+      - run: make test
+
+  e2e:
+    name: Browser e2e (Chrome for Testing)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Install Chrome for Testing into the holodeck
+        id: chrome
+        run: |
+          mkdir -p "$HOME/.holodeck/browsers"
+          out=$(npx --yes @puppeteer/browsers install chrome@stable --path "$HOME/.holodeck/browsers")
+          echo "$out"
+          echo "path=${out#* }" >> "$GITHUB_OUTPUT"
+      - name: Run e2e
+        env:
+          BROWSER: ${{ steps.chrome.outputs.path }}
+        run: make e2e
+
+  package:
+    name: Package zip
+    runs-on: ubuntu-latest
+    needs: [unit, e2e]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: make package
+      - uses: actions/upload-artifact@v4
+        with:
+          name: organize-tabs-zip
+          path: organize_tabs-*.zip
+          if-no-files-found: error
