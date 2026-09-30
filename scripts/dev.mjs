@@ -1,15 +1,17 @@
-// Launches a throwaway browser profile with the extension loaded and a set of
-// sample tabs across two windows, so every action has something to work on.
+// Launches the "holodeck": a throwaway browser profile with the extension
+// loaded and a set of sample tabs across two windows, so every action has
+// something to work on.
 //
 //   make dev                          # Brave by default
 //   BROWSER=/path/to/chromium make dev
 //
-// The profile lives in the system temp dir and is reused between runs, so
-// settings you change persist. Delete it with `make dev-clean`.
+// The profile lives at ~/.holodeck/<browser>/ and is reused between runs, so
+// settings you change persist. Delete it with `make dev-clean`. Nothing in
+// ~/.holodeck is real; it exists to be trashed by humans and AI agents alike.
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { basename, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const EXT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -26,8 +28,17 @@ if (!CHROME) {
     console.error('No Chromium-based browser found. Set BROWSER=/path/to/binary');
     process.exit(2);
 }
-export const PROFILE = join(tmpdir(), 'organize-tabs-dev-profile');
-mkdirSync(PROFILE, { recursive: true });
+export const HOLODECK = process.env.HOLODECK || join(homedir(), '.holodeck');
+const browserSlug = basename(CHROME).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-browser$/, '');
+export const PROFILE = join(HOLODECK, browserSlug);
+
+// First launch: name the profile so every window's profile chip says where
+// you are. Chrome reads profile.name from the Default profile's Preferences.
+const prefs = join(PROFILE, 'Default', 'Preferences');
+if (!existsSync(prefs)) {
+    mkdirSync(dirname(prefs), { recursive: true });
+    writeFileSync(prefs, JSON.stringify({ profile: { name: '🧪 holodeck' } }));
+}
 
 const WINDOW_1 = [
     'https://github.com/hacktoolkit/organize-tabs-chrome-extension/pull/8',
@@ -64,7 +75,7 @@ const args = [
 const child = spawn(CHROME, args, { detached: true, stdio: 'ignore' });
 child.unref();
 console.log(`Launched ${CHROME}`);
-console.log(`Profile: ${PROFILE}`);
+console.log(`Holodeck profile: ${PROFILE}`);
 console.log('');
 console.log('Two windows with sample tabs are open: duplicates by rule (PR subpages, LinkedIn');
 console.log('profile pages, YouTube short link, Stack Overflow /q/), by normalization (wikipedia');

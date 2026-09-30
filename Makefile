@@ -25,10 +25,10 @@ package: clean test
 e2e:
 	node scripts/e2e.mjs
 
-## dev - launch a throwaway browser profile with the extension and sample tabs
+## dev - launch the holodeck (throwaway browser profile at ~/.holodeck) with the extension and sample tabs
 dev:
 	node scripts/dev.mjs
 
-## dev-clean - delete the throwaway dev profile
+## dev-clean - end program: delete the holodeck browser profiles
 dev-clean:
-	rm -rf "$${TMPDIR:-/tmp}/organize-tabs-dev-profile"
+	rm -rf "$${HOLODECK:-$$HOME/.holodeck}"/brave "$${HOLODECK:-$$HOME/.holodeck}"/chromium "$${HOLODECK:-$$HOME/.holodeck}"/tmp

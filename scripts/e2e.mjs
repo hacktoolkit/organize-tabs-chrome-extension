@@ -8,8 +8,8 @@
 // Chromium or Chrome for Testing. Network is disabled with a host-resolver
 // rule so tab URLs stay exactly as seeded.
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -28,7 +28,10 @@ if (!CHROME) {
     process.exit(2);
 }
 const PORT = Number(process.env.PORT) || 9337;
-const profile = mkdtempSync(join(tmpdir(), 'organize-tabs-e2e-'));
+// Ephemeral profile under the holodeck (~/.holodeck), deleted when the run ends.
+const HOLODECK = process.env.HOLODECK || join(homedir(), '.holodeck');
+mkdirSync(join(HOLODECK, 'tmp'), { recursive: true });
+const profile = mkdtempSync(join(HOLODECK, 'tmp', 'organize-tabs-e2e-'));
 
 const chrome = spawn(CHROME, [
     `--user-data-dir=${profile}`,
