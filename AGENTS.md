@@ -25,10 +25,10 @@ STORE_LISTING.md       Chrome Web Store copy, permission justifications, privacy
 ## Rules of the road
 
 - **All tab operations run in the service worker.** The popup only sends `chrome.runtime.sendMessage` and renders results. Chrome closes the popup the moment a window is created or focused, which kills any logic running there.
-- **Never move a pinned tab.** Every action filters them out or leaves them at their index.
+- **Never unpin or reorder a pinned tab.** Sort, group, split and the cleanup actions skip them entirely. The two actions that move pinned tabs across windows on purpose (Consolidate All, Pull Media) re-pin them at the front of the destination immediately, because Chrome unpins on move.
 - **Never break a tab group.** Sort keeps groups contiguous. Cross-window moves go through `moveTabsPreservingGroups` in `src/lib/actions.js`, which moves whole groups, merges into a same-named group in the destination, and rebuilds partial groups.
 - **Windows holding a meeting or playing media are primary.** Consolidate and Split go through `withoutProtectedWindows`; new window-rearranging actions should too. `isMediaTab` in `src/lib/url.js` defines media (audible, or a URL matching the user's media patterns).
-- **Anything that closes tabs goes through `closeTabs`** so it lands in the undo stack, and exposes a `preview` so the popup can show the list first.
+- **Anything that closes tabs with content goes through `closeTabs`** so it lands in the undo stack, and exposes a `preview` so the popup can show the list first. Blank new-tab pages are the one exception: they carry nothing to restore. Tabs the extension itself opens (Undo, Restore) are registered with `markOwnTab` so auto-dedupe leaves them alone.
 - **Pure logic lives in `src/lib/url.js`** and gets a unit test. New duplicate rules go in `DEFAULT_RULES` with a case in `test/url.test.js` showing the URL variants that must collapse and one that must not.
 - Keep the existing code style (`.prettierrc`: 4 spaces, single quotes, semicolons).
 

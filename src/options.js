@@ -86,7 +86,16 @@ function renderGeneral() {
 
 function bindGeneral() {
     BOOL_FIELDS.forEach((f) => $(`#${f}`).addEventListener('change', (e) => { state.settings[f] = e.target.checked; scheduleSave(); }));
-    NUM_FIELDS.forEach((f) => $(`#${f}`).addEventListener('change', (e) => { state.settings[f] = Number(e.target.value) || DEFAULT_SETTINGS[f]; scheduleSave(); }));
+    NUM_FIELDS.forEach((f) => $(`#${f}`).addEventListener('change', (e) => {
+        const input = e.target;
+        const min = input.min === '' ? -Infinity : Number(input.min);
+        const max = input.max === '' ? Infinity : Number(input.max);
+        const n = Number(input.value);
+        const value = Number.isFinite(n) && input.value.trim() !== '' ? Math.min(max, Math.max(min, n)) : DEFAULT_SETTINGS[f];
+        state.settings[f] = value;
+        input.value = value;
+        scheduleSave();
+    }));
     TEXT_FIELDS.forEach((f) => $(`#${f}`).addEventListener('change', (e) => { state.settings[f] = e.target.value.trim(); scheduleSave(); }));
     NORM_FIELDS.forEach((f) => $(`#n-${f}`).addEventListener('change', (e) => { state.settings.normalization[f] = e.target.checked; scheduleSave(); runTester(); }));
     $('#trackingParams').addEventListener('change', (e) => {
@@ -120,7 +129,7 @@ async function requestOrigin(url) {
 // ----- RULES --------------------
 
 function compiledRules() {
-    const all = [...state.rules, ...state.remoteRules.map((r) => ({ ...r, remote: true }))];
+    const all = [...state.rules, ...state.remoteRules];
     const { compiled, errors } = compileRules(all);
     ruleErrors = new Map(errors.map((e) => [e.rule, e.error]));
     return compiled;

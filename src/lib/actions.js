@@ -86,7 +86,9 @@ async function pullMediaTabs(ctx) {
     }
     // reuse a window that already holds only media tabs
     let target = windows.find(
-        (w) => w.tabs.length > 0 && w.tabs.every((t) => isMediaTab(t, ctx.media) || isBlankUrl(t.url))
+        (w) =>
+            w.tabs.some((t) => isMediaTab(t, ctx.media)) &&
+            w.tabs.every((t) => isMediaTab(t, ctx.media) || isBlankUrl(t.url))
     );
     const toMove = media.filter((t) => !target || t.windowId !== target.id);
     let created = false;
@@ -122,9 +124,7 @@ async function pullMediaTabs(ctx) {
             }
         }
     }
-    if (created) {
-        await closeBlankTabsIn(target.id);
-    }
+    await closeBlankTabsIn(target.id);
     // bring the meeting (or the first media tab) to the front
     const focus =
         media.find((t) => isMediaUrl(t.url, ctx.media) && t.audible) ||
@@ -186,6 +186,29 @@ function plural(n, word) {
     return `${n} ${word}${n === 1 ? '' : 's'}`;
 }
 
+// ----- TABS WE CREATE --------------------
+
+// Tabs opened by Undo or Restore must not be re-closed by auto-dedupe.
+const ownTabs = new Set();
+
+export function markOwnTab(tabId) {
+    ownTabs.add(tabId);
+}
+
+export function isOwnTab(tabId) {
+    return ownTabs.has(tabId);
+}
+
+export function forgetOwnTab(tabId) {
+    ownTabs.delete(tabId);
+}
+
+async function createOwnTab(props) {
+    const tab = await chrome.tabs.create(props);
+    markOwnTab(tab.id);
+    return tab;
+}
+
 // ----- UNDO --------------------
 
 async function readUndo() {
@@ -240,18 +263,32 @@ export async function undoLastClose() {
     }
     await chrome.storage.session.set({ undo: stack });
     const windows = await normalWindows({ includeIncognito: true });
-    const known = new Set(windows.map((w) => w.id));
+    const known = new Map(windows.map((w) => [w.id, w]));
     const fallback = await currentWindow();
+    let incognitoFallback = null;
     let reopened = 0;
     for (const t of entry.tabs) {
-        const windowId = known.has(t.windowId) ? t.windowId : fallback?.id;
         try {
-            await chrome.tabs.create({
-                url: t.url,
-                windowId,
-                pinned: t.pinned,
-                active: false
-            });
+            const original = known.get(t.windowId);
+            let windowId;
+            if (original && original.incognito === !!t.incognito) {
+                windowId = original.id;
+            } else if (t.incognito) {
+                // never reopen a private URL in a normal window
+                if (!incognitoFallback) {
+                    const w = await chrome.windows.create({ url: t.url, incognito: true, focused: false });
+                    incognitoFallback = w;
+                    if (w.tabs && w.tabs[0]) {
+                        markOwnTab(w.tabs[0].id);
+                    }
+                    reopened += 1;
+                    continue;
+                }
+                windowId = incognitoFallback.id;
+            } else {
+                windowId = fallback?.id;
+            }
+            await createOwnTab({ url: t.url, windowId, pinned: t.pinned, active: false });
             reopened += 1;
         } catch (e) {
             console.warn('could not reopen', t.url, e);
@@ -862,11 +899,11 @@ export const ACTIONS = [
                     url: t.url
                 });
             }
-            const closed = await closeTabs(tabs, 'Park window');
-            if (win && win.tabs.length === closed) {
-                // keep the window alive with a blank tab
+            if (win && win.tabs.length === tabs.length) {
+                // closing every tab would close the window; keep it alive first
                 await chrome.tabs.create({ windowId: win.id });
             }
+            const closed = await closeTabs(tabs, 'Park window');
             return { message: `Parked ${plural(closed, 'tab')} into "${folder.title}"`, closed };
         }
     },
@@ -893,7 +930,7 @@ export const ACTIONS = [
             const win = await currentWindow();
             const ids = [];
             for (const b of parked.items) {
-                const t = await chrome.tabs.create({ windowId: win.id, url: b.url, active: false });
+                const t = await createOwnTab({ windowId: win.id, url: b.url, active: false });
                 ids.push(t.id);
             }
             const groupId = await chrome.tabs.group({ tabIds: ids, createProperties: { windowId: win.id } });
@@ -920,20 +957,27 @@ export const ACTIONS = [
         async run() {
             const windows = await chrome.windows.getAll({ windowTypes: ['normal', 'popup'] });
             let count = 0;
+            let failed = 0;
             for (const w of windows) {
                 count += 1;
                 try {
-                    await chrome.windows.update(w.id, {
-                        focused: true,
-                        left: 40 * count,
-                        top: 40 * count,
-                        state: w.state === 'minimized' ? 'normal' : w.state
-                    });
+                    if (w.state === 'minimized') {
+                        await chrome.windows.update(w.id, { state: 'normal' });
+                    }
+                    // position and state cannot be set in the same call, and
+                    // maximized or fullscreen windows refuse a position
+                    const normal = w.state === 'normal' || w.state === 'minimized';
+                    await chrome.windows.update(
+                        w.id,
+                        normal ? { focused: true, left: 40 * count, top: 40 * count } : { focused: true }
+                    );
                 } catch (e) {
-                    // fullscreen or locked windows can refuse
+                    failed += 1;
                 }
             }
-            return { message: `Brought ${plural(count, 'window')} to front` };
+            return {
+                message: `Brought ${plural(count - failed, 'window')} to front${failed ? `, ${failed} refused` : ''}`
+            };
         }
     },
     {

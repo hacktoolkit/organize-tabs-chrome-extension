@@ -257,6 +257,19 @@ try {
     const focus = await send({ type: 'run', action: 'focusAllWindows' });
     check('focus all windows', /Brought \d+ window/.test(focus.message), focus.message);
 
+    // park a window that has no pinned tab: the window must survive, no error
+    const winP = await popup.eval(`chrome.windows.create({ url: ['https://park.test/a', 'https://park.test/b'], focused: false })`);
+    await sleep(800);
+    const parkNoPin = await send({ type: 'run', action: 'parkWindow', args: { windowId: winP.id } });
+    const winPAfter = await popup.eval(`chrome.windows.get(${winP.id}, { populate: true }).catch(() => null)`);
+    check('park without pinned tabs keeps the window alive', parkNoPin.closed === 2 && winPAfter && winPAfter.tabs.length === 1, `${parkNoPin.message}; window=${winPAfter ? winPAfter.tabs.length + ' tabs' : 'gone'}`);
+    await send({ type: 'run', action: 'restoreParked' });
+    await sleep(600);
+
+    // an empty window must not be chosen as the media window
+    const winE = await popup.eval(`chrome.windows.create({ focused: false })`);
+    await sleep(300);
+
     // meetings and media: pull them out, then consolidate must leave them alone
     const winM = await popup.eval(`chrome.windows.create({ url: ['https://meet.google.com/abc-defg-hij', 'https://example.net/doc', 'https://www.youtube.com/watch?v=abc123'], focused: false })`);
     await popup.eval(`chrome.windows.create({ url: ['https://example.net/other'], focused: false })`);
@@ -273,6 +286,8 @@ try {
     const mediaWin = all.filter((t) => t.windowId === meet.windowId);
     check('pull media gathers meeting and player into one window', meet.windowId === yt.windowId && mediaWin.length === 2 && meet.windowId !== winM.id, `${pull.message}; ${mediaWin.map((t) => t.url).join(', ')}`);
     check('pull media focuses the meeting', meet.active);
+    check('pull media did not pick the empty window', meet.windowId !== winE.id);
+    await popup.eval(`chrome.windows.remove(${winE.id}).catch(() => {})`);
     check('pull media leaves non-media tabs behind', all.find((t) => t.url === 'https://example.net/doc').windowId === winM.id);
     const cons2 = await send({ type: 'run', action: 'consolidateAll' });
     await sleep(500);
@@ -290,6 +305,13 @@ try {
     await sleep(1500);
     const countAfter = (await tabs()).length;
     check('auto-dedupe closes the new duplicate', countAfter === countBefore, `${countBefore} -> ${countAfter}`);
+    // with auto-dedupe on, Undo must reopen a duplicate and leave it open
+    const undoWithAuto = await send({ type: 'run', action: 'undo' });
+    await sleep(1500);
+    const checksTab = (await tabs()).filter((t) => t.url === 'https://github.com/dataro/app/pull/124/checks');
+    check('undo survives auto-dedupe', checksTab.length === 1, `${undoWithAuto.message}; found ${checksTab.length}`);
+    await popup.eval(`chrome.storage.sync.set({ settings: { autoDedupe: false } })`);
+    await send({ type: 'settingsChanged' });
 
     // options page loads without errors
     const { targetId: optId } = await browser.send('Target.createTarget', { url: `chrome-extension://${extId}/src/options.html` });

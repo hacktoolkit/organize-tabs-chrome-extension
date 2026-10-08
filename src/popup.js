@@ -275,11 +275,16 @@ async function openScopePanel(action) {
         const scopesNode = el('div', { class: 'scopes' });
         const listHolder = el('div');
 
+        let requestSeq = 0;
         async function updateList() {
+            const seq = ++requestSeq;
             listHolder.innerHTML = '';
             listHolder.append(el('div', { class: 'empty', text: 'Loading…' }));
             const args = { ...baseArgs(), scope: state.scope, keepCurrent: state.keepCurrent };
             const preview = await send({ type: 'preview', action: action.id, args });
+            if (seq !== requestSeq) {
+                return; // a newer selection superseded this response
+            }
             listHolder.innerHTML = '';
             listHolder.append(renderItems(preview.items));
             const confirm = $('#panel-confirm');

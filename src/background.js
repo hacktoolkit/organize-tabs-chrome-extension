@@ -1,8 +1,8 @@
 // Service worker. All tab operations run here so they survive the popup
 // closing (creating or focusing a window closes the popup).
 
-import { ACTIONS, ACTION_BY_ID, closeTabs, loadContext, stats } from './lib/actions.js';
-import { fetchRemoteRules, recordRemoteError } from './lib/settings.js';
+import { ACTIONS, ACTION_BY_ID, closeTabs, forgetOwnTab, isOwnTab, loadContext, stats } from './lib/actions.js';
+import { clearRemoteRules, fetchRemoteRules, recordRemoteError } from './lib/settings.js';
 import { canonicalize, isBlankUrl } from './lib/url.js';
 
 const MENU_ROOT = 'organizeTabs';
@@ -150,6 +150,7 @@ chrome.tabs.onCreated.addListener((tab) => {
 
 chrome.tabs.onRemoved.addListener((tabId) => {
     recentlyCreated.delete(tabId);
+    forgetOwnTab(tabId);
     scheduleBadge();
 });
 
@@ -158,6 +159,11 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
         scheduleBadge();
     }
     if (!changeInfo.url || isBlankUrl(changeInfo.url)) {
+        return;
+    }
+    if (isOwnTab(tabId)) {
+        // Undo and Restore reopen tabs on purpose; never auto-close those
+        recentlyCreated.delete(tabId);
         return;
     }
     const createdAt = recentlyCreated.get(tabId);
@@ -221,12 +227,35 @@ async function updateBadge() {
 
 // ----- REMOTE RULES --------------------
 
+// Keeps the alarm in step with the settings without restarting its countdown
+// on every save, drops the cache when the URL is removed or changed, and
+// fetches right away when the cache is missing or older than the period.
 async function scheduleRemoteRefresh() {
     const ctx = await loadContext();
-    await chrome.alarms.clear(REMOTE_ALARM);
-    if (ctx.settings.remoteRulesUrl) {
-        const hours = Math.max(1, Number(ctx.settings.remoteRefreshHours) || 24);
-        chrome.alarms.create(REMOTE_ALARM, { periodInMinutes: hours * 60 });
+    const url = ctx.settings.remoteRulesUrl;
+    const hours = Math.max(1, Number(ctx.settings.remoteRefreshHours) || 24);
+    const period = hours * 60;
+    const existing = await chrome.alarms.get(REMOTE_ALARM);
+    if (!url) {
+        if (existing) {
+            await chrome.alarms.clear(REMOTE_ALARM);
+        }
+        if (ctx.remoteRules.length > 0 || ctx.remoteRulesMeta) {
+            await clearRemoteRules();
+            scheduleBadge();
+        }
+        return;
+    }
+    if (!existing || existing.periodInMinutes !== period) {
+        chrome.alarms.create(REMOTE_ALARM, { periodInMinutes: period });
+    }
+    const meta = ctx.remoteRulesMeta;
+    const stale = !meta || meta.url !== url || !meta.fetchedAt || Date.now() - meta.fetchedAt > period * 60000;
+    if (stale) {
+        if (meta && meta.url !== url) {
+            await clearRemoteRules();
+        }
+        await refreshRemoteRules();
     }
 }
 

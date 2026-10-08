@@ -78,15 +78,28 @@ export function mergeSettings(stored) {
 
 // Returns { settings, rules, remoteRules, source } where rules are the user's
 // own rules (defaults on first run) and remoteRules is the cached remote list.
+// Both areas are read and the more recently saved copy wins, so a save that
+// fell back to local (sync quota) is not shadowed by stale sync data.
 export async function loadSettings() {
-    let data = await readArea('sync', SYNC_KEYS);
+    const [sync, local] = await Promise.all([
+        readArea('sync', [...SYNC_KEYS, 'savedAt']),
+        readArea('local', [...SYNC_KEYS, 'savedAt'])
+    ]);
+    const has = (d) => !!(d.settings || d.rules);
+    let data = {};
     let source = 'sync';
-    if (!data.settings && !data.rules) {
-        const local = await readArea('local', SYNC_KEYS);
-        if (local.settings || local.rules) {
+    if (has(sync) && has(local)) {
+        if ((local.savedAt || 0) > (sync.savedAt || 0)) {
             data = local;
             source = 'local';
+        } else {
+            data = sync;
         }
+    } else if (has(local)) {
+        data = local;
+        source = 'local';
+    } else if (has(sync)) {
+        data = sync;
     }
     const cache = await readArea('local', ['remoteRules', 'remoteRulesMeta']);
     return {
@@ -110,12 +123,15 @@ export async function saveSettings({ settings, rules }) {
     if (rules) {
         payload.rules = rules;
     }
+    payload.savedAt = Date.now();
     // sync has an 8KB per-item limit; fall back to local when it refuses
     const ok = await writeArea('sync', payload);
     if (!ok) {
         await writeArea('local', payload);
         return 'local';
     }
+    // keep local in step so a later fallback compares against fresh data
+    await writeArea('local', payload);
     return 'sync';
 }
 
