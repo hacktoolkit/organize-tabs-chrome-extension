@@ -1,5 +1,5 @@
 VERSION := $(shell jq < manifest.json .version -r)
-.PHONY: help test check e2e dev dev-clean clean package
+.PHONY: help test check e2e dev dev-clean screenshots clean package
 
 ## help - Display help about make targets for this Makefile
 help:
@@ -32,3 +32,7 @@ dev:
 ## dev-clean - end program: delete the holodeck browser profiles
 dev-clean:
 	rm -rf "$${HOLODECK:-$$HOME/.holodeck}"/brave "$${HOLODECK:-$$HOME/.holodeck}"/chromium "$${HOLODECK:-$$HOME/.holodeck}"/tmp
+
+## screenshots - render README and Chrome Web Store screenshots from the holodeck
+screenshots:
+	node scripts/screenshots.mjs

@@ -127,11 +127,17 @@ test/                  node --test suites
 
 All tab operations run in the service worker. The popup only sends messages, because Chrome closes the popup as soon as a new window is created or focused.
 
+## Privacy
+
+Organize Tabs does not collect, store remotely, or transmit any data. Tab URLs and titles are read and processed only inside your browser to find duplicates, sort and group. Preferences and rules are saved in your browser profile's own storage. The only network request the extension can make is to fetch a rules file at a URL you configure yourself, and that is off by default.
+
 ## Building and publishing
 
 ```sh
 make package       # organize_tabs-<version>.zip
 ```
+
+`STORE_LISTING.md` has the store description, permission justifications and privacy answers to paste into the dashboard, and `make screenshots` regenerates the README images and the 1280x800 store screenshots in `promo/store/` from the holodeck.
 
 CI also attaches the zip to every run as the `organize-tabs-zip` artifact (Actions tab, pick a run, Artifacts). To try a build on another machine without cloning: download it, unzip, then `chrome://extensions` → Developer mode → **Load unpacked** → pick the unzipped folder.
 
