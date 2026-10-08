@@ -261,11 +261,15 @@ try {
     const winM = await popup.eval(`chrome.windows.create({ url: ['https://meet.google.com/abc-defg-hij', 'https://example.net/doc', 'https://www.youtube.com/watch?v=abc123'], focused: false })`);
     await popup.eval(`chrome.windows.create({ url: ['https://example.net/other'], focused: false })`);
     await sleep(1000);
+    // a video popped out into its own popup window must be skipped, not fatal
+    await popup.eval(`chrome.windows.create({ url: 'https://www.youtube.com/watch?v=popout1', type: 'popup', focused: false })`);
+    await sleep(500);
     const pull = await send({ type: 'run', action: 'pullMedia' });
+    check('pull media reports popup-window media instead of failing', /1 tab in popup or app windows left as is/.test(pull.message), pull.message);
     await sleep(500);
     let all = await tabs();
     const meet = all.find((t) => t.url.startsWith('https://meet.google.com/'));
-    const yt = all.find((t) => t.url.startsWith('https://www.youtube.com/watch'));
+    const yt = all.find((t) => t.url === 'https://www.youtube.com/watch?v=abc123');
     const mediaWin = all.filter((t) => t.windowId === meet.windowId);
     check('pull media gathers meeting and player into one window', meet.windowId === yt.windowId && mediaWin.length === 2 && meet.windowId !== winM.id, `${pull.message}; ${mediaWin.map((t) => t.url).join(', ')}`);
     check('pull media focuses the meeting', meet.active);

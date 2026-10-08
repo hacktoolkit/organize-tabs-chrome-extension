@@ -54,11 +54,35 @@ function withoutProtectedWindows(windows, ctx) {
     };
 }
 
+// Tabs can only move between windows of type "normal". A meeting popped out
+// into its own window (type "popup") or an installed web app (type "app")
+// cannot be moved, so those are reported rather than attempted.
+async function movableMediaTabs(ctx) {
+    const all = await chrome.windows.getAll({ populate: true });
+    const movable = [];
+    let stuck = 0;
+    for (const w of all) {
+        for (const t of mediaTabsIn(w, ctx)) {
+            if (w.type === 'normal' && !w.incognito) {
+                movable.push(t);
+            } else {
+                stuck += 1;
+            }
+        }
+    }
+    return { media: movable, stuck };
+}
+
 async function pullMediaTabs(ctx) {
     const windows = await normalWindows();
-    const media = windows.flatMap((w) => mediaTabsIn(w, ctx));
+    const { media, stuck } = await movableMediaTabs(ctx);
+    const stuckNote = stuck > 0 ? ` (${plural(stuck, 'tab')} in popup or app windows left as is)` : '';
     if (media.length === 0) {
-        return { message: 'No meeting or playing tabs found' };
+        return {
+            message: stuck > 0
+                ? `Media is already in ${plural(stuck, 'separate popup or app window')}`
+                : 'No meeting or playing tabs found'
+        };
     }
     // reuse a window that already holds only media tabs
     let target = windows.find(
@@ -73,13 +97,30 @@ async function pullMediaTabs(ctx) {
     const pinned = toMove.filter((t) => t.pinned);
     const unpinned = toMove.filter((t) => !t.pinned);
     let pinnedIndex = target.tabs ? target.tabs.filter((t) => t.pinned).length : 0;
+    let failed = 0;
     for (const t of pinned) {
-        await chrome.tabs.move(t.id, { windowId: target.id, index: pinnedIndex });
-        await chrome.tabs.update(t.id, { pinned: true });
-        pinnedIndex += 1;
+        try {
+            await chrome.tabs.move(t.id, { windowId: target.id, index: pinnedIndex });
+            await chrome.tabs.update(t.id, { pinned: true });
+            pinnedIndex += 1;
+        } catch (e) {
+            console.warn('could not move pinned media tab', t.url, e);
+            failed += 1;
+        }
     }
     if (unpinned.length > 0) {
-        await moveTabsPreservingGroups(unpinned, target.id);
+        try {
+            await moveTabsPreservingGroups(unpinned, target.id);
+        } catch (e) {
+            console.warn('bulk media move failed, retrying one by one', e);
+            for (const t of unpinned) {
+                try {
+                    await chrome.tabs.move(t.id, { windowId: target.id, index: -1 });
+                } catch (e2) {
+                    failed += 1;
+                }
+            }
+        }
     }
     if (created) {
         await closeBlankTabsIn(target.id);
@@ -89,10 +130,15 @@ async function pullMediaTabs(ctx) {
         media.find((t) => isMediaUrl(t.url, ctx.media) && t.audible) ||
         media.find((t) => isMediaUrl(t.url, ctx.media)) ||
         media[0];
-    await chrome.tabs.update(focus.id, { active: true });
-    await chrome.windows.update(target.id, { focused: true });
+    try {
+        await chrome.tabs.update(focus.id, { active: true });
+        await chrome.windows.update(target.id, { focused: true });
+    } catch (e) {
+        // the focused tab may have refused to move; the window is still up
+    }
+    const failedNote = failed > 0 ? `, ${failed} could not be moved` : '';
     return {
-        message: `${created ? 'Opened a window with' : 'Gathered'} ${plural(media.length, 'media tab')}`
+        message: `${created ? 'Opened a window with' : 'Gathered'} ${plural(media.length - failed, 'media tab')}${failedNote}${stuckNote}`
     };
 }
 
