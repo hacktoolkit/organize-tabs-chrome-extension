@@ -1,0 +1,33 @@
+Organize Tabs is for people who keep a lot of tabs open. One click groups, sorts, deduplicates and tidies tabs across every window, and it knows that a pull request, a ticket, a profile or a document is the same page even when the URL is different.
+
+DEDUPLICATE, PROPERLY
+A pull request and its Files tab. A Jira issue and its board link. A LinkedIn profile and its Experience page. A YouTube video and its short link. A Google Doc in edit and view mode. Built-in rules collapse all of these to one tab and keep the pinned, active, or most recently viewed copy. Rules are editable, with a live tester, and you can add your own.
+
+TURN IT ON AND FORGET IT
+Auto-deduplicate closes a freshly opened link that is already open somewhere and jumps you to the existing tab. Off by default.
+
+CLOSE TABS LIKE THIS ONE
+From any tab, close everything on the same domain, in the same section of the site, or the same kind of page: every open pull request, every profile. Keep the one you are on. Always with a preview first, always with undo.
+
+ORGANIZE
+• Group Tabs by Domain using native tab groups
+• Sort Tabs in Window by site and URL, keeping groups together
+• Consolidate every window into one, or split windows by domain
+• Pinned tabs never move. Tab groups travel between windows intact and merge into a group with the same name.
+
+MEETINGS AND MEDIA
+Pull every meeting and playing tab into its own window with one click. Windows holding a call or a player are left alone by Consolidate and Split, so a tidy-up never pulls the meeting out from under you.
+
+CLEAN UP
+• Close stale tabs you have not looked at in days
+• Free memory by discarding stale tabs without closing them
+• Close blank tabs
+• Park a whole window to a dated bookmark folder, and restore it later as a tab group
+• Undo the last close
+
+SETTINGS THAT FOLLOW YOU
+Preferences and rules sync with your browser profile. Export and import JSON to move between profiles, or point at a rules file you host and it refreshes on a schedule.
+
+Keyboard shortcuts for every action, a duplicate count on the toolbar icon, a right-click menu, light and dark themes, inline help.
+
+Vanilla JavaScript, no build step, no dependencies, no tracking, no network requests except an optional rules file you configure. Open source under the MIT license: https://github.com/hacktoolkit/organize-tabs-chrome-extension
