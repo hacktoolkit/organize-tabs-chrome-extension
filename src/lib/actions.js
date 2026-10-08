@@ -7,11 +7,14 @@
 import {
     colorForHost,
     compareTabs,
+    compileMediaPatterns,
     compileRules,
     findDuplicates,
     groupTitleForHost,
     hostOf,
     isBlankUrl,
+    isMediaTab,
+    isMediaUrl,
     isStale,
     isWebUrl,
     scopesFor
@@ -28,7 +31,69 @@ export async function loadContext() {
     const { compiled, errors } = compileRules(
         effectiveRules(loaded.rules, loaded.remoteRules)
     );
-    return { ...loaded, compiled, ruleErrors: errors };
+    const media = compileMediaPatterns(loaded.settings.mediaPatterns);
+    return { ...loaded, compiled, ruleErrors: errors, media };
+}
+
+// ----- MEDIA / MEETINGS --------------------
+
+function mediaTabsIn(win, ctx) {
+    return win.tabs.filter((t) => isMediaTab(t, ctx.media));
+}
+
+// Windows holding a meeting or playing media are "primary": consolidate and
+// split leave them alone when the setting is on.
+function withoutProtectedWindows(windows, ctx) {
+    if (!ctx.settings.protectMediaWindows) {
+        return { windows, protected: [] };
+    }
+    const protectedWins = windows.filter((w) => mediaTabsIn(w, ctx).length > 0);
+    return {
+        windows: windows.filter((w) => !protectedWins.includes(w)),
+        protected: protectedWins
+    };
+}
+
+async function pullMediaTabs(ctx) {
+    const windows = await normalWindows();
+    const media = windows.flatMap((w) => mediaTabsIn(w, ctx));
+    if (media.length === 0) {
+        return { message: 'No meeting or playing tabs found' };
+    }
+    // reuse a window that already holds only media tabs
+    let target = windows.find(
+        (w) => w.tabs.length > 0 && w.tabs.every((t) => isMediaTab(t, ctx.media) || isBlankUrl(t.url))
+    );
+    const toMove = media.filter((t) => !target || t.windowId !== target.id);
+    let created = false;
+    if (!target) {
+        target = await chrome.windows.create({ focused: true });
+        created = true;
+    }
+    const pinned = toMove.filter((t) => t.pinned);
+    const unpinned = toMove.filter((t) => !t.pinned);
+    let pinnedIndex = target.tabs ? target.tabs.filter((t) => t.pinned).length : 0;
+    for (const t of pinned) {
+        await chrome.tabs.move(t.id, { windowId: target.id, index: pinnedIndex });
+        await chrome.tabs.update(t.id, { pinned: true });
+        pinnedIndex += 1;
+    }
+    if (unpinned.length > 0) {
+        await moveTabsPreservingGroups(unpinned, target.id);
+    }
+    if (created) {
+        await closeBlankTabsIn(target.id);
+    }
+    // bring the meeting (or the first media tab) to the front
+    const focus =
+        media.find((t) => isMediaUrl(t.url, ctx.media) && t.audible) ||
+        media.find((t) => isMediaUrl(t.url, ctx.media)) ||
+        media[0];
+    await chrome.tabs.update(focus.id, { active: true });
+    await chrome.windows.update(target.id, { focused: true });
+    return {
+        message: `${created ? 'Opened a window with' : 'Gathered'} ${plural(media.length, 'media tab')}`
+    };
 }
 
 // ----- TAB / WINDOW HELPERS --------------------
@@ -326,9 +391,16 @@ async function moveTabsPreservingGroups(tabs, targetWindowId) {
 // ----- CONSOLIDATE / SPLIT --------------------
 
 async function consolidate({ includePinned }) {
-    const windows = await normalWindows();
+    const ctx = await loadContext();
+    const all = await normalWindows();
+    const { windows, protected: protectedWins } = withoutProtectedWindows(all, ctx);
     if (windows.length < 2) {
-        return { message: 'Only one window open, nothing to consolidate' };
+        return {
+            message:
+                protectedWins.length > 0
+                    ? `Nothing to consolidate outside ${plural(protectedWins.length, 'window')} with a meeting or media`
+                    : 'Only one window open, nothing to consolidate'
+        };
     }
     const focused = windows.find((w) => w.focused);
     const target =
@@ -366,13 +438,15 @@ async function consolidate({ includePinned }) {
         groupsKept + groupsMerged > 0
             ? `, kept ${plural(groupsKept, 'group')}${groupsMerged ? ` and merged ${groupsMerged}` : ''}`
             : '';
+    const mediaNote = protectedWins.length > 0 ? `; left ${plural(protectedWins.length, 'media window')} alone` : '';
     return {
-        message: `Moved ${plural(moved, 'tab')} into one window and sorted it${groupNote}`
+        message: `Moved ${plural(moved, 'tab')} into one window and sorted it${groupNote}${mediaNote}`
     };
 }
 
 async function splitWindowsByDomain() {
-    const windows = await normalWindows();
+    const ctx = await loadContext();
+    const { windows, protected: protectedWins } = withoutProtectedWindows(await normalWindows(), ctx);
     const tabs = windows
         .flatMap((w) => w.tabs)
         .filter((t) => !t.pinned && isWebUrl(t.url));
@@ -411,7 +485,8 @@ async function splitWindowsByDomain() {
         await newWindowWith(singles);
         created += 1;
     }
-    return { message: `Split ${plural(tabs.length, 'tab')} into ${plural(created, 'window')}` };
+    const mediaNote = protectedWins.length > 0 ? `; left ${plural(protectedWins.length, 'media window')} alone` : '';
+    return { message: `Split ${plural(tabs.length, 'tab')} into ${plural(created, 'window')}${mediaNote}` };
 }
 
 // ----- CLOSERS --------------------
@@ -782,6 +857,16 @@ export const ACTIONS = [
         }
     },
     {
+        id: 'pullMedia',
+        name: 'Pull Meetings & Media to a Window',
+        group: 'windows',
+        help: 'Moves every tab that is playing audio or showing a meeting or video player into its own window and focuses the meeting. Consolidate and Split then leave that window alone.',
+        async run() {
+            const ctx = await loadContext();
+            return pullMediaTabs(ctx);
+        }
+    },
+    {
         id: 'focusAllWindows',
         name: 'Bring All Windows to Front',
         group: 'windows',
@@ -839,6 +924,7 @@ export async function stats() {
         stale: (await staleTabs(ctx, {})).length,
         blank: tabs.filter((t) => isBlankUrl(t.url) && !t.pinned).length,
         discarded: tabs.filter((t) => t.discarded).length,
+        media: tabs.filter((t) => isMediaTab(t, ctx.media)).length,
         staleDays: ctx.settings.staleDays,
         ruleErrors: ctx.ruleErrors.length,
         undo

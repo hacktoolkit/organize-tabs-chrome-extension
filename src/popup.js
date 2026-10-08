@@ -11,7 +11,7 @@ const GROUPS = [
 
 const SHORTCUT_COMMANDS = new Set([
     'dedupe', 'sortWindow', 'groupByDomain', 'closeScope', 'closeBlank', 'closeStale',
-    'discardStale', 'consolidateAll', 'consolidateUnpinned', 'parkWindow', 'undo'
+    'discardStale', 'consolidateAll', 'consolidateUnpinned', 'parkWindow', 'pullMedia', 'undo'
 ]);
 
 const ICONS = {
@@ -28,6 +28,7 @@ const ICONS = {
     closeBlank: 'M4 5h16v14H4zM9 10l6 6M15 10l-6 6',
     parkWindow: 'M6 3h12v18l-6-4-6 4zM9 8h6',
     restoreParked: 'M6 3h12v18l-6-4-6 4zM12 7v6M9 10l3 3 3-3',
+    pullMedia: 'M3 6h13v12H3zM16 10l5-3v10l-5-3M7 9.5v5l4-2.5z',
     focusAllWindows: 'M3 8h12v11H3zM9 3h12v11h-3M9 3v5',
     undo: 'M9 14l-4-4 4-4M5 10h9a5 5 0 010 10h-3'
 };
@@ -83,6 +84,7 @@ function countFor(actionId) {
         case 'closeBlank': return stats.blank;
         case 'closeStale': return stats.stale;
         case 'discardStale': return stats.stale;
+        case 'pullMedia': return stats.media;
         case 'undo': return stats.undo ? stats.undo.count : 0;
         default: return null;
     }

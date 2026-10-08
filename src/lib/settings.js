@@ -2,7 +2,7 @@
 // they follow the browser profile across machines; chrome.storage.local is the
 // fallback when sync is unavailable and the home of caches (remote rules).
 
-import { DEFAULT_NORMALIZATION, DEFAULT_RULES } from './url.js';
+import { DEFAULT_MEDIA_PATTERNS, DEFAULT_NORMALIZATION, DEFAULT_RULES } from './url.js';
 
 export const SETTINGS_VERSION = 1;
 
@@ -24,6 +24,11 @@ export const DEFAULT_SETTINGS = {
     // bookmark folder used by "Park window"
     parkFolderName: 'Organize Tabs',
     normalization: { ...DEFAULT_NORMALIZATION },
+    // leave windows that hold a meeting or playing media alone when
+    // consolidating or splitting
+    protectMediaWindows: true,
+    // URL patterns that count as a meeting or media player even when silent
+    mediaPatterns: [...DEFAULT_MEDIA_PATTERNS],
     // optional URL of a JSON file with {"rules": [...]} to merge in
     remoteRulesUrl: '',
     remoteRefreshHours: 24

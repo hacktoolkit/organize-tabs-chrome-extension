@@ -61,6 +61,7 @@
         "consolidateAll": { "description": "Consolidate all tabs" },
         "consolidateUnpinned": { "description": "Consolidate unpinned tabs" },
         "parkWindow": { "description": "Park window to bookmarks" },
+        "pullMedia": { "description": "Pull meetings and media to a window" },
         "undo": { "description": "Undo last close" }
     }
 }

@@ -132,6 +132,48 @@ export const DEFAULT_RULES = [
     }
 ];
 
+// Pages that are a meeting or a media player even when silent (muted call,
+// paused video). Audible tabs count as media regardless of URL.
+export const DEFAULT_MEDIA_PATTERNS = [
+    '^https?://meet\\.google\\.com/[a-z]{3}-[a-z]{4}-[a-z]{3}',
+    '^https?://[^/]*zoom\\.us/(j|wc|s|my)/',
+    '^https?://teams\\.(microsoft|live)\\.com/.*(meetup-join|/meet/|/v2/)',
+    '^https?://[^/]*whereby\\.com/',
+    '^https?://[^/]*around\\.co/',
+    '^https?://[^/]*webex\\.com/(meet|join|wbxmjs)',
+    '^https?://app\\.gather\\.town/',
+    '^https?://discord\\.com/channels/',
+    '^https?://app\\.slack\\.com/huddle/',
+    '^https?://(www|m)\\.youtube\\.com/watch',
+    '^https?://music\\.youtube\\.com/',
+    '^https?://[^/]*twitch\\.tv/',
+    '^https?://[^/]*vimeo\\.com/\\d+',
+    '^https?://open\\.spotify\\.com/',
+    '^https?://[^/]*netflix\\.com/watch/',
+    '^https?://[^/]*loom\\.com/share/'
+];
+
+export function compileMediaPatterns(patterns) {
+    const compiled = [];
+    for (const p of patterns || []) {
+        try {
+            compiled.push(new RegExp(p, 'i'));
+        } catch (e) {
+            // ignore bad patterns; the options page reports them
+        }
+    }
+    return compiled;
+}
+
+export function isMediaUrl(url, compiledMedia = []) {
+    return !!url && compiledMedia.some((re) => re.test(url));
+}
+
+// A media tab is audible, or on a meeting/player page even while silent.
+export function isMediaTab(tab, compiledMedia = []) {
+    return !!tab.audible || isMediaUrl(tab.url || tab.pendingUrl || '', compiledMedia);
+}
+
 export const DEFAULT_NORMALIZATION = {
     ignoreScheme: true,
     stripWww: true,

@@ -69,7 +69,7 @@ async function save() {
 
 // ----- GENERAL --------------------
 
-const BOOL_FIELDS = ['confirmClose', 'autoDedupe', 'showBadge', 'collapseGroups'];
+const BOOL_FIELDS = ['confirmClose', 'autoDedupe', 'showBadge', 'collapseGroups', 'protectMediaWindows'];
 const NUM_FIELDS = ['staleDays', 'minGroupSize', 'remoteRefreshHours'];
 const TEXT_FIELDS = ['survivorPolicy', 'parkFolderName', 'remoteRulesUrl'];
 const NORM_FIELDS = ['ignoreScheme', 'stripWww', 'ignoreFragment', 'ignoreTrailingSlash', 'sortQueryParams', 'stripTrackingParams'];
@@ -81,6 +81,7 @@ function renderGeneral() {
     TEXT_FIELDS.forEach((f) => { $(`#${f}`).value = s[f] ?? ''; });
     NORM_FIELDS.forEach((f) => { $(`#n-${f}`).checked = !!s.normalization[f]; });
     $('#trackingParams').value = (s.normalization.trackingParams || TRACKING_PARAMS).join('\n');
+    $('#mediaPatterns').value = (s.mediaPatterns || []).join('\n');
 }
 
 function bindGeneral() {
@@ -92,6 +93,10 @@ function bindGeneral() {
         state.settings.normalization.trackingParams = e.target.value.split(/[\n,]/).map((p) => p.trim()).filter(Boolean);
         scheduleSave();
         runTester();
+    });
+    $('#mediaPatterns').addEventListener('change', (e) => {
+        state.settings.mediaPatterns = e.target.value.split('\n').map((p) => p.trim()).filter(Boolean);
+        scheduleSave();
     });
     $('#remoteRulesUrl').addEventListener('change', async (e) => {
         const url = e.target.value.trim();

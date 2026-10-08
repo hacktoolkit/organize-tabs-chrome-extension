@@ -43,6 +43,7 @@ Every action is available from the toolbar popup, the right-click context menu, 
 
 | Action | What it does |
 | --- | --- |
+| **Pull Meetings & Media to a Window** | Moves every tab that is playing audio or showing a meeting or video player into its own window and focuses the meeting. |
 | **Bring All Windows to Front** | Focuses and cascades every window so misplaced ones reappear. |
 | **Undo Last Close** | Reopens whatever the last action closed. |
 
@@ -77,6 +78,10 @@ A remote rules file is either a full export or just `{"rules": [...]}`.
 ## Keyboard shortcuts
 
 Defaults: `Alt+Shift+O` opens the popup, `Alt+Shift+D` deduplicates, `Alt+Shift+S` sorts the window, `Alt+Shift+G` groups by domain. Every other action can be bound at `chrome://extensions/shortcuts`.
+
+## Meetings and media
+
+Being on a call while tidying up is the common case, so a window holding a meeting or a playing tab is treated as primary: **Consolidate** and **Split** leave it alone (a setting, on by default). A tab counts as media when it is audible or on a meeting or player page: Google Meet, Zoom, Teams, Whereby, Around, Webex, Gather, Discord, Slack huddles, YouTube, YouTube Music, Twitch, Vimeo, Spotify, Netflix and Loom by default, editable in Settings. **Pull Meetings & Media to a Window** gathers all of them into one window, which is a good first click when a call starts.
 
 ## Tab groups and pinned tabs
 

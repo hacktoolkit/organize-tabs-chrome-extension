@@ -147,7 +147,7 @@ try {
     await sleep(300);
 
     const actions = await send({ type: 'actions' });
-    check('actions list', actions.length === 15, `${actions.length} actions`);
+    check('actions list', actions.length === 16, `${actions.length} actions`);
 
     let s = await send({ type: 'stats' });
     check('stats counts duplicates', s.duplicates === 3, `duplicates=${s.duplicates} tabs=${s.tabs}`);
@@ -257,6 +257,27 @@ try {
     const focus = await send({ type: 'run', action: 'focusAllWindows' });
     check('focus all windows', /Brought \d+ window/.test(focus.message), focus.message);
 
+    // meetings and media: pull them out, then consolidate must leave them alone
+    const winM = await popup.eval(`chrome.windows.create({ url: ['https://meet.google.com/abc-defg-hij', 'https://example.net/doc', 'https://www.youtube.com/watch?v=abc123'], focused: false })`);
+    await popup.eval(`chrome.windows.create({ url: ['https://example.net/other'], focused: false })`);
+    await sleep(1000);
+    const pull = await send({ type: 'run', action: 'pullMedia' });
+    await sleep(500);
+    let all = await tabs();
+    const meet = all.find((t) => t.url.startsWith('https://meet.google.com/'));
+    const yt = all.find((t) => t.url.startsWith('https://www.youtube.com/watch'));
+    const mediaWin = all.filter((t) => t.windowId === meet.windowId);
+    check('pull media gathers meeting and player into one window', meet.windowId === yt.windowId && mediaWin.length === 2 && meet.windowId !== winM.id, `${pull.message}; ${mediaWin.map((t) => t.url).join(', ')}`);
+    check('pull media focuses the meeting', meet.active);
+    check('pull media leaves non-media tabs behind', all.find((t) => t.url === 'https://example.net/doc').windowId === winM.id);
+    const cons2 = await send({ type: 'run', action: 'consolidateAll' });
+    await sleep(500);
+    all = await tabs();
+    const mediaWinAfter = all.filter((t) => t.windowId === meet.windowId);
+    check('consolidate leaves the media window alone', mediaWinAfter.length === 2 && /left 1 media window alone/.test(cons2.message), `${cons2.message}; ${mediaWinAfter.length} tabs`);
+    const docTab = all.find((t) => t.url === 'https://example.net/doc');
+    check('consolidate still merged the other windows', docTab.windowId !== meet.windowId && all.find((t) => t.url === 'https://example.net/other').windowId === docTab.windowId);
+
     // auto-dedupe
     await popup.eval(`chrome.storage.sync.set({ settings: { autoDedupe: true } })`);
     await send({ type: 'settingsChanged' });
@@ -274,13 +295,13 @@ try {
     const ruleRows = await opt.eval(`document.querySelectorAll('#rule-list .rule').length`);
     check('options page renders built-in rules', ruleRows === 19, `${ruleRows} rows`);
     const helpRows = await opt.eval(`new Promise(r => setTimeout(() => r(document.querySelectorAll('#help-list .help-item').length), 500))`);
-    check('options help lists actions', helpRows === 15, `${helpRows} rows`);
+    check('options help lists actions', helpRows === 16, `${helpRows} rows`);
     const exported = await opt.eval(`(async () => { const m = await import('./lib/settings.js'); const l = await m.loadSettings(); return JSON.stringify(m.exportBundle(l)).length; })()`);
     check('export bundle builds', exported > 1000, `${exported} bytes`);
 
     // popup renders
     const popupButtons = await popup.eval(`document.querySelectorAll('.action').length`);
-    check('popup renders action buttons', popupButtons === 15, `${popupButtons} buttons`);
+    check('popup renders action buttons', popupButtons === 16, `${popupButtons} buttons`);
 
     // any console errors in the service worker?
     const swTarget = await waitFor((t) => t.type === 'service_worker' && t.url.startsWith(`chrome-extension://${extId}/`), 'sw');

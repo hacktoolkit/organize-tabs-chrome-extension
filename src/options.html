@@ -59,6 +59,14 @@
                     <label class="switch"><input type="checkbox" id="collapseGroups" /><i></i></label>
                 </div>
                 <div class="row">
+                    <div class="lbl"><b>Leave meeting and media windows alone</b><span>Consolidate and Split skip any window that holds a tab playing audio or showing a meeting or video player, so a call stays put while you tidy around it.</span></div>
+                    <label class="switch"><input type="checkbox" id="protectMediaWindows" /><i></i></label>
+                </div>
+                <div class="row col">
+                    <div class="lbl"><b>Meeting and media pages</b><span>Regular expressions, one per line. A tab on one of these pages counts as media even when silent; any audible tab counts regardless.</span></div>
+                    <textarea id="mediaPatterns" rows="6" spellcheck="false"></textarea>
+                </div>
+                <div class="row">
                     <div class="lbl"><b>Bookmark folder for parked windows</b></div>
                     <input type="text" id="parkFolderName" />
                 </div>

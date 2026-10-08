@@ -25,6 +25,7 @@ scripts/dev.mjs        launches the holodeck dev profile with sample tabs
 - **All tab operations run in the service worker.** The popup only sends `chrome.runtime.sendMessage` and renders results. Chrome closes the popup the moment a window is created or focused, which kills any logic running there.
 - **Never move a pinned tab.** Every action filters them out or leaves them at their index.
 - **Never break a tab group.** Sort keeps groups contiguous. Cross-window moves go through `moveTabsPreservingGroups` in `src/lib/actions.js`, which moves whole groups, merges into a same-named group in the destination, and rebuilds partial groups.
+- **Windows holding a meeting or playing media are primary.** Consolidate and Split go through `withoutProtectedWindows`; new window-rearranging actions should too. `isMediaTab` in `src/lib/url.js` defines media (audible, or a URL matching the user's media patterns).
 - **Anything that closes tabs goes through `closeTabs`** so it lands in the undo stack, and exposes a `preview` so the popup can show the list first.
 - **Pure logic lives in `src/lib/url.js`** and gets a unit test. New duplicate rules go in `DEFAULT_RULES` with a case in `test/url.test.js` showing the URL variants that must collapse and one that must not.
 - Keep the existing code style (`.prettierrc`: 4 spaces, single quotes, semicolons).

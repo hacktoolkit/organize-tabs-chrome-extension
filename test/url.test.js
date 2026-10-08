@@ -283,3 +283,31 @@ test('groupTitleForHost', () => {
     assert.equal(groupTitleForHost('news.bbc.co.uk'), 'bbc');
     assert.equal(groupTitleForHost('localhost'), 'localhost');
 });
+
+test('media patterns recognise meetings and players, not lobbies', async () => {
+    const { DEFAULT_MEDIA_PATTERNS, compileMediaPatterns, isMediaUrl, isMediaTab } = await import('../src/lib/url.js');
+    const media = compileMediaPatterns(DEFAULT_MEDIA_PATTERNS);
+    assert.equal(media.length, DEFAULT_MEDIA_PATTERNS.length);
+    for (const url of [
+        'https://meet.google.com/abc-defg-hij?authuser=0',
+        'https://us02web.zoom.us/j/123456789',
+        'https://teams.microsoft.com/l/meetup-join/19%3ameeting',
+        'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+        'https://open.spotify.com/track/abc',
+        'https://www.twitch.tv/somebody'
+    ]) {
+        assert.ok(isMediaUrl(url, media), url);
+    }
+    for (const url of [
+        'https://meet.google.com/',
+        'https://meet.google.com/landing',
+        'https://zoom.us/pricing',
+        'https://www.youtube.com/',
+        'https://github.com/x/y/pull/1'
+    ]) {
+        assert.ok(!isMediaUrl(url, media), url);
+    }
+    assert.ok(isMediaTab({ url: 'https://example.com/', audible: true }, media));
+    assert.ok(!isMediaTab({ url: 'https://example.com/', audible: false }, media));
+    assert.equal(compileMediaPatterns(['(', 'ok']).length, 1);
+});
