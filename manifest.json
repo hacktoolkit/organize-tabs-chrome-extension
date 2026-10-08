@@ -1,37 +1,67 @@
 {
     "manifest_version": 3,
-
     "name": "Organize Tabs",
-    "version": "0.8.0",
-
-    "description": "Organize tabs in Google Chrome.",
-
-    "icons" : {
-        "16" : "img/organize_tabs_icon_128.png",
-        "64" : "img/organize_tabs_icon_128.png",
-        "128" : "img/organize_tabs_icon_128.png"
+    "short_name": "Organize Tabs",
+    "version": "2.0.0",
+    "description": "Group, sort, deduplicate and tidy tabs. Catches duplicate PRs, tickets, profiles and docs even when the URLs differ.",
+    "author": "Hacktoolkit (@hacktoolkit)",
+    "minimum_chrome_version": "121",
+    "icons": {
+        "16": "img/icon16.png",
+        "32": "img/icon32.png",
+        "48": "img/icon48.png",
+        "128": "img/icon128.png"
     },
-
     "action": {
-        "default_icon": "img/organize_tabs_icon_128.png",
+        "default_icon": {
+            "16": "img/icon16.png",
+            "32": "img/icon32.png"
+        },
         "default_popup": "src/popup.html",
         "default_title": "Organize Tabs"
     },
-
-    "author": "Hacktoolkit (@hacktoolkit)",
-
     "options_ui": {
-        "page": "src/options.html"
+        "page": "src/options.html",
+        "open_in_tab": true
     },
-
-    "permissions": [
-        "contextMenus",
-        "tabs"
-    ],
-
     "background": {
-        "service_worker": "src/js/organize_tabs.js"
+        "service_worker": "src/background.js",
+        "type": "module"
     },
-
-    "short_name": "Organize Tabs"
+    "permissions": [
+        "tabs",
+        "tabGroups",
+        "storage",
+        "bookmarks",
+        "contextMenus",
+        "alarms"
+    ],
+    "optional_host_permissions": ["https://*/*", "http://*/*"],
+    "commands": {
+        "_execute_action": {
+            "suggested_key": { "default": "Alt+Shift+O" },
+            "description": "Open Organize Tabs"
+        },
+        "dedupe": {
+            "suggested_key": { "default": "Alt+Shift+D" },
+            "description": "Deduplicate tabs"
+        },
+        "sortWindow": {
+            "suggested_key": { "default": "Alt+Shift+S" },
+            "description": "Sort tabs in window"
+        },
+        "groupByDomain": {
+            "suggested_key": { "default": "Alt+Shift+G" },
+            "description": "Group tabs by domain"
+        },
+        "closeScope": { "description": "Close tabs from this domain" },
+        "closeBlank": { "description": "Close blank tabs" },
+        "closeStale": { "description": "Close stale tabs" },
+        "discardStale": { "description": "Free memory (discard stale tabs)" },
+        "consolidateAll": { "description": "Consolidate all tabs" },
+        "consolidateUnpinned": { "description": "Consolidate unpinned tabs" },
+        "parkWindow": { "description": "Park window to bookmarks" },
+        "pullMedia": { "description": "Pull meetings and media to a window" },
+        "undo": { "description": "Undo last close" }
+    }
 }
