@@ -1,0 +1,5 @@
+Organize Tabs 2.0 is out. The Chrome extension I've used daily since 2020, rebuilt.
+
+It knows a PR and its Files tab are the same page. A Jira issue and its board link. A LinkedIn profile and its Experience tab. One key, one tab.
+
+Free, open source, no tracking.

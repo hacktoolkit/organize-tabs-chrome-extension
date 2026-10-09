@@ -473,7 +473,7 @@ async function moveTabsPreservingGroups(tabs, targetWindowId) {
 
 // ----- CONSOLIDATE / SPLIT --------------------
 
-async function consolidate({ includePinned }) {
+async function consolidate({ includePinned, windowId }) {
     const ctx = await loadContext();
     const all = await normalWindows();
     const { windows, protected: protectedWins } = withoutProtectedWindows(all, ctx);
@@ -485,9 +485,12 @@ async function consolidate({ includePinned }) {
                     : 'Only one window open, nothing to consolidate'
         };
     }
+    // the window the action was invoked from wins; then the focused window;
+    // then the one with the most tabs
+    const invoked = windowId ? windows.find((w) => w.id === windowId) : null;
     const focused = windows.find((w) => w.focused);
     const target =
-        focused || windows.slice().sort((a, b) => b.tabs.length - a.tabs.length)[0];
+        invoked || focused || windows.slice().sort((a, b) => b.tabs.length - a.tabs.length)[0];
     let moved = 0;
     let groupsKept = 0;
     let groupsMerged = 0;
@@ -750,14 +753,14 @@ export const ACTIONS = [
         name: 'Consolidate All Tabs',
         group: 'organize',
         help: 'Moves every tab, pinned ones included, into the current window and sorts it. Tab groups come along, and a group joins an existing group with the same name.',
-        run: () => consolidate({ includePinned: true })
+        run: (args = {}) => consolidate({ includePinned: true, windowId: args.windowId })
     },
     {
         id: 'consolidateUnpinned',
         name: 'Consolidate Unpinned Tabs',
         group: 'organize',
         help: 'Moves unpinned tabs into the current window and sorts it. Pinned tabs stay in their windows; tab groups come along.',
-        run: () => consolidate({ includePinned: false })
+        run: (args = {}) => consolidate({ includePinned: false, windowId: args.windowId })
     },
     {
         id: 'splitByDomain',

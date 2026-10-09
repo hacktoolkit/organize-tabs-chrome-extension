@@ -18,7 +18,9 @@ src/ui.css             shared design tokens, light and dark
 test/url.test.js       node --test suite for src/lib/url.js
 scripts/e2e.mjs        headless browser test over the DevTools protocol
 scripts/dev.mjs        launches the holodeck dev profile with sample tabs
-scripts/screenshots.mjs renders README images and 1280x800 store screenshots
+scripts/screenshots.mjs renders README images, store screenshots and promo tiles
+scripts/demo.mjs       records promo/demo.mp4, demo.gif and stills (ffmpeg-static in the holodeck)
+promo/ANNOUNCEMENT.md  launch posts (LinkedIn, X, Show HN); plain text in promo/posts/
 STORE_LISTING.md       Chrome Web Store copy, permission justifications, privacy answers
 ```
 
@@ -57,4 +59,4 @@ CI (`.github/workflows/ci.yml`) runs `make check`, `make test` on Node 22 and 24
 1. Bump `version` in `manifest.json` and `package.json`. The manifest `description` is the store summary and must stay at or under 132 characters.
 2. `make screenshots` if the UI changed, and update `STORE_LISTING.md` if actions or permissions changed.
 3. Merge, tag `vX.Y.Z`, create a GitHub Release with the CI zip attached.
-4. Upload the zip to the Chrome Web Store dashboard and paste from `STORE_LISTING.md`.
+4. Upload the zip to the Chrome Web Store dashboard. Paste from `promo/store/description.txt` and `promo/store/privacy.txt` (plain text, no markdown), screenshots and promo tiles from `promo/store/`.

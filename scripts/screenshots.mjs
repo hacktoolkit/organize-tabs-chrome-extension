@@ -139,6 +139,11 @@ try {
     await browser.send('Target.createTarget', { url: `chrome-extension://${extId}/src/popup.html`, newWindow: true, width: 340, height: 640 });
     const popupT = await waitFor((t) => t.url.endsWith('/src/popup.html'));
     const popup = await CDP.connect(popupT.webSocketDebuggerUrl);
+    // the page can be observed before the extension APIs are bound
+    for (let i = 0; i < 40; i++) {
+        if (await popup.eval(`typeof chrome !== 'undefined' && !!chrome.windows && location.protocol === 'chrome-extension:'`).catch(() => false)) break;
+        await sleep(250);
+    }
     await popup.eval(`chrome.windows.create({ url: ${JSON.stringify(URLS)}, focused: false })`);
     await sleep(1200);
     // make the current tab a PR so the scope panel has an entity option
@@ -187,6 +192,41 @@ try {
         await page.shot(join(STORE, st.file), { width: 1280, height: 800, scale: 1, dark: true });
         page.ws.close();
         console.log('wrote', join('promo/store', st.file));
+    }
+    // promo tiles: small (440x280) and marquee (1400x560)
+    const icon = readFileSync(join(EXT, 'img', 'icon128.png')).toString('base64');
+    const popupData = readFileSync(shots.popup).toString('base64');
+    const tiles = [
+        { file: 'tile-small-440x280.png', width: 440, height: 280, html: `<!doctype html><html><head><meta charset="utf-8"><style>
+            html,body{margin:0;width:440px;height:280px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;color:#eef0f6}
+            body{background:radial-gradient(500px 320px at 15% 0%,#2a2f52 0%,#12141c 65%,#0c0d13 100%)}
+            .w{position:relative;width:440px;height:280px;display:flex;flex-direction:column;justify-content:center;padding:0 36px;box-sizing:border-box}
+            img{width:56px;height:56px;border-radius:12px;margin-bottom:16px}
+            h1{margin:0 0 8px;font-size:30px;letter-spacing:-0.02em}
+            p{margin:0;font-size:15px;line-height:1.4;color:#b4b9d0;max-width:340px}
+            </style></head><body><div class="w"><img src="data:image/png;base64,${icon}"><h1>Organize Tabs</h1><p>Group, sort and deduplicate tabs. Catches duplicate PRs, tickets, profiles and docs even when the URLs differ.</p></div></body></html>` },
+        { file: 'tile-marquee-1400x560.png', width: 1400, height: 560, html: `<!doctype html><html><head><meta charset="utf-8"><style>
+            html,body{margin:0;width:1400px;height:560px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Helvetica,Arial,sans-serif;color:#eef0f6}
+            body{background:radial-gradient(1300px 600px at 20% 0%,#2a2f52 0%,#12141c 60%,#0c0d13 100%)}
+            .w{position:relative;width:1400px;height:560px;display:flex;align-items:center;gap:60px;padding:0 90px;box-sizing:border-box}
+            .t{flex:0 0 620px}
+            img.i{width:64px;height:64px;border-radius:14px;margin-bottom:22px}
+            h1{margin:0 0 14px;font-size:54px;line-height:1.05;letter-spacing:-0.025em}
+            p{margin:0;font-size:22px;line-height:1.45;color:#b4b9d0}
+            .s{flex:1;height:480px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+            .s img{height:760px;margin-top:280px;border-radius:14px;box-shadow:0 30px 80px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.08)}
+            </style></head><body><div class="w"><div class="t"><img class="i" src="data:image/png;base64,${icon}"><h1>Tabs, under control</h1><p>Group, sort and deduplicate every window in one click. Knows that a pull request, a ticket, a profile or a document is the same page even when the URL differs.</p></div><div class="s"><img src="data:image/png;base64,${popupData}"></div></div></body></html>` }
+    ];
+    for (const tile of tiles) {
+        const html = join(profile, `${tile.file}.html`);
+        writeFileSync(html, tile.html);
+        const { targetId } = await browser.send('Target.createTarget', { url: `file://${html}`, newWindow: true, width: tile.width, height: tile.height });
+        const t = await waitFor((x) => x.id === targetId || x.url === `file://${html}`);
+        const page = await CDP.connect(t.webSocketDebuggerUrl);
+        await sleep(400);
+        await page.shot(join(STORE, tile.file), { width: tile.width, height: tile.height, scale: 1, dark: true });
+        page.ws.close();
+        console.log('wrote', join('promo/store', tile.file));
     }
     console.log('wrote', Object.values(shots).map((f) => f.replace(EXT + '/', '')).join(', '));
 } finally {

@@ -6,6 +6,8 @@ Vanilla JavaScript, no build step, no dependencies. Works in Chrome, Brave, Edge
 
 Chrome Web Store: <https://chrome.google.com/webstore/detail/organize-tabs/ebnlpacdgjnofakgfgbildmjdhbibnpa>
 
+![Demo: deduplicate, close tabs like this one, group by domain, pull meetings to a window, consolidate](promo/demo.gif)
+
 <p>
   <img src="promo/popup.png" width="300" alt="Popup" />
   <img src="promo/preview.png" width="300" alt="Preview before closing duplicates" />
@@ -136,6 +138,8 @@ Organize Tabs does not collect, store remotely, or transmit any data. Tab URLs a
 ```sh
 make package       # organize_tabs-<version>.zip
 ```
+
+`make demo` records `promo/demo.mp4`, `promo/demo.gif` and the stills in `promo/stills/` by driving the extension in the holodeck and composing each frame with a live map of the browser's windows; it installs a static ffmpeg into `~/.holodeck/tools` on first run. Launch posts are in `promo/ANNOUNCEMENT.md`.
 
 `STORE_LISTING.md` has the store description, permission justifications and privacy answers to paste into the dashboard, and `make screenshots` regenerates the README images and the 1280x800 store screenshots in `promo/store/` from the holodeck.
 

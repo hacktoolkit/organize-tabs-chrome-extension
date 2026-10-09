@@ -1,0 +1,23 @@
+SINGLE PURPOSE
+Organize Tabs organizes the user's open browser tabs: grouping, sorting, deduplicating, closing and moving them between windows.
+
+TABS
+Read tab URLs and titles to find duplicates, sort by URL, group by site, and show previews; move and close tabs. This is the extension's entire function.
+
+TABGROUPS
+Create, name and colour tab groups for "Group Tabs by Domain", and keep existing groups intact when sorting or moving tabs between windows.
+
+STORAGE
+Save the user's preferences and duplicate rules, synced with the browser profile, plus the session undo stack.
+
+BOOKMARKS
+"Park Window to Bookmarks" saves the current window's tabs into a bookmark folder the user names, and "Restore Last Parked" reopens them. No other bookmarks are read or modified.
+
+CONTEXTMENUS
+Offer every action from the page right-click menu.
+
+ALARMS
+Refresh the optional remote rules file on the schedule the user sets.
+
+OPTIONAL HOST PERMISSIONS
+Requested at runtime, only for the origin of a remote rules file the user explicitly configures, so it can be fetched when the host does not send CORS headers. Never requested otherwise.
