@@ -3,6 +3,7 @@
 Post once the Chrome Web Store review approves 2.0.0. Attach `promo/demo.mp4` (LinkedIn, X) or `promo/demo.gif`, and the stills from `promo/stills/` where a static image works better. Plain-text copies of each post are in `promo/posts/`.
 
 Links:
+- Blog post (publish this first, then link to it): https://www.jontsai.com/2026/10/10/organize-tabs-2-0
 - Store: https://chrome.google.com/webstore/detail/organize-tabs/ebnlpacdgjnofakgfgbildmjdhbibnpa
 - Source: https://github.com/hacktoolkit/organize-tabs-chrome-extension
 
@@ -35,6 +36,7 @@ Vanilla JavaScript, no build step, no dependencies, no tracking. Nothing leaves 
 
 Chrome Web Store: https://chrome.google.com/webstore/detail/organize-tabs/ebnlpacdgjnofakgfgbildmjdhbibnpa
 Source: https://github.com/hacktoolkit/organize-tabs-chrome-extension
+The full write-up, with the demo: https://www.jontsai.com/2026/10/10/organize-tabs-2-0
 
 If you have a site whose URLs should count as the same page and do not, open an issue with two example URLs. Rules are a ten-line PR.
 
@@ -72,6 +74,7 @@ Vanilla JS, no build step, no dependencies. Rules are editable JSON with a live 
 
 Store: https://chrome.google.com/webstore/detail/organize-tabs/ebnlpacdgjnofakgfgbildmjdhbibnpa
 Code: https://github.com/hacktoolkit/organize-tabs-chrome-extension
+Write-up: https://www.jontsai.com/2026/10/10/organize-tabs-2-0
 ```
 
 ---
@@ -84,7 +87,7 @@ Title (under 80 characters):
 Show HN: Organize Tabs – Chrome extension that dedupes PRs, tickets and profiles
 ```
 
-URL: `https://github.com/hacktoolkit/organize-tabs-chrome-extension`
+URL: `https://www.jontsai.com/2026/10/10/organize-tabs-2-0` (the write-up with the demo video; the repo is linked from it and from the comment below)
 
 First comment, posted immediately after submitting. HN rewards specifics and candour about how it works and what it does not do.
 
@@ -108,6 +111,9 @@ Other things I cared about:
 Testing was the fun part. The pure URL logic has a node --test suite. The whole extension is also driven end to end in a real headless Chromium over the DevTools protocol: it seeds tabs, clicks every action, and asserts on the resulting windows, groups and pinned state. That runs in CI on every push, and the same harness records the demo video in the README.
 
 Limitations: Chrome has no API for the tab-strip right-click menu, so actions live in the toolbar popup, the page context menu and keyboard shortcuts. "Stale tab" detection uses lastAccessed, which needs Chrome 121+. It can't tell a paused video from a playing one without a content script, so silent media detection is URL-based.
+
+Source: https://github.com/hacktoolkit/organize-tabs-chrome-extension
+Store: https://chrome.google.com/webstore/detail/organize-tabs/ebnlpacdgjnofakgfgbildmjdhbibnpa
 
 Happy to answer questions, and if a site's URLs should collapse and don't, two example URLs in an issue is enough for me to add a rule.
 ```

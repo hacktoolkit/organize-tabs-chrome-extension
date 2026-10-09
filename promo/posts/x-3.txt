@@ -2,3 +2,4 @@ Vanilla JS, no build step, no dependencies. Rules are editable JSON with a live 
 
 Store: https://chrome.google.com/webstore/detail/organize-tabs/ebnlpacdgjnofakgfgbildmjdhbibnpa
 Code: https://github.com/hacktoolkit/organize-tabs-chrome-extension
+Write-up: https://www.jontsai.com/2026/10/10/organize-tabs-2-0

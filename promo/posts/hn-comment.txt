@@ -18,4 +18,7 @@ Testing was the fun part. The pure URL logic has a node --test suite. The whole 
 
 Limitations: Chrome has no API for the tab-strip right-click menu, so actions live in the toolbar popup, the page context menu and keyboard shortcuts. "Stale tab" detection uses lastAccessed, which needs Chrome 121+. It can't tell a paused video from a playing one without a content script, so silent media detection is URL-based.
 
+Source: https://github.com/hacktoolkit/organize-tabs-chrome-extension
+Store: https://chrome.google.com/webstore/detail/organize-tabs/ebnlpacdgjnofakgfgbildmjdhbibnpa
+
 Happy to answer questions, and if a site's URLs should collapse and don't, two example URLs in an issue is enough for me to add a rule.

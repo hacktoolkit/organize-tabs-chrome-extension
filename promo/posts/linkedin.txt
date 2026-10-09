@@ -20,6 +20,7 @@ Vanilla JavaScript, no build step, no dependencies, no tracking. Nothing leaves 
 
 Chrome Web Store: https://chrome.google.com/webstore/detail/organize-tabs/ebnlpacdgjnofakgfgbildmjdhbibnpa
 Source: https://github.com/hacktoolkit/organize-tabs-chrome-extension
+The full write-up, with the demo: https://www.jontsai.com/2026/10/10/organize-tabs-2-0
 
 If you have a site whose URLs should count as the same page and do not, open an issue with two example URLs. Rules are a ten-line PR.
 
