@@ -11,7 +11,7 @@ Links:
 
 ## LinkedIn
 
-Attach `demo.mp4`. First line is the hook; LinkedIn truncates after about 200 characters until "see more". Short lines and a blank line between every unit: LinkedIn keeps single line breaks but renders long paragraphs as a wall.
+Attach `demo.mp4`. First line is the hook; LinkedIn truncates after about 200 characters until "see more". Short lines and a blank line between every unit. LinkedIn's composer collapses empty lines on paste, so paste `promo/posts/linkedin-paste.txt` instead: its blank lines hold an invisible Braille blank (U+2800) that LinkedIn keeps.
 
 ```
 I open every link I get pinged and use the tabs as my to-do list.
