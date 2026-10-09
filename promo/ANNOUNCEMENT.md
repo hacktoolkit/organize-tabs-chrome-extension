@@ -11,34 +11,49 @@ Links:
 
 ## LinkedIn
 
-Attach `demo.mp4`. First line is the hook; LinkedIn truncates after about 200 characters until "see more".
+Attach `demo.mp4`. First line is the hook; LinkedIn truncates after about 200 characters until "see more". Short lines and a blank line between every unit: LinkedIn keeps single line breaks but renders long paragraphs as a wall.
 
 ```
-I open every link I get pinged and use the tabs as my to-do list. By Friday that is 100+ tabs, the same pull request open three times, and a browser eating memory.
+I open every link I get pinged and use the tabs as my to-do list.
 
-So I rebuilt Organize Tabs, the Chrome extension I wrote in 2020 and have used daily since. Version 2.0 is out today, free and open source.
+By Friday that's 100+ tabs. The same pull request open three times. A browser eating memory.
 
-What is new:
+So I rebuilt Organize Tabs, the Chrome extension I wrote in 2020 and have used every day since.
 
-→ Deduplicate that actually understands pages. A PR and its Files tab, a Jira issue and its board link, a LinkedIn profile and its Experience page, a Google Doc in edit and view mode: one key, one tab. 19 built-in rules, all editable, with a live tester.
+Version 2.0 is out today. Free and open source.
 
-→ Auto-dedupe. Open a link that is already open and it closes the new tab and takes you to the existing one.
+What's new:
 
-→ Close tabs like this one. From any page, close everything on the same domain, the same section of the site, or the same kind of page. Every open pull request. Every profile. Keep the one you are on.
+→ Deduplicate that understands pages.
+A PR and its Files tab. A Jira issue and its board link. A LinkedIn profile and its Experience page. One key, one tab.
 
-→ Tab groups that survive. Group by domain, sort with groups intact, consolidate windows and the groups come along.
+→ Auto-dedupe.
+Open a link that's already open, and it closes the new tab and takes you to the existing one.
 
-→ Meetings are sacred. Pull the call and the video into their own window with one click. Tidying never pulls the meeting out from under you.
+→ Close tabs like this one.
+Every open pull request. Every profile. Keep the one you're on.
 
-→ Preview before every close. Undo after. Settings sync across your profiles, with JSON export and import.
+→ Tab groups that survive.
+Group by domain, sort with groups intact, consolidate windows and the groups come along.
 
-Vanilla JavaScript, no build step, no dependencies, no tracking. Nothing leaves your browser.
+→ Meetings are sacred.
+Pull the call into its own window with one click. Tidying never touches it.
 
-Chrome Web Store: https://chrome.google.com/webstore/detail/organize-tabs/ebnlpacdgjnofakgfgbildmjdhbibnpa
-Source: https://github.com/hacktoolkit/organize-tabs-chrome-extension
-The full write-up, with the demo: https://www.jontsai.com/2026/10/10/organize-tabs-2-0
+→ Preview before every close. Undo after.
+Settings sync across your profiles, with JSON export and import.
 
-If you have a site whose URLs should count as the same page and do not, open an issue with two example URLs. Rules are a ten-line PR.
+Vanilla JavaScript. No build step. No dependencies. No tracking. Nothing leaves your browser.
+
+Full write-up with the demo:
+https://www.jontsai.com/2026/10/10/organize-tabs-2-0
+
+Chrome Web Store:
+https://chrome.google.com/webstore/detail/organize-tabs/ebnlpacdgjnofakgfgbildmjdhbibnpa
+
+Source:
+https://github.com/hacktoolkit/organize-tabs-chrome-extension
+
+If a site's URLs should count as the same page and don't, open an issue with two example URLs. A rule is a ten-line PR.
 
 #chrome #productivity #opensource #browserextension
 ```
