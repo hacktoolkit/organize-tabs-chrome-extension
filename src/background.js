@@ -2,7 +2,7 @@
 // closing (creating or focusing a window closes the popup).
 
 import { ACTIONS, ACTION_BY_ID, closeTabs, forgetOwnTab, isOwnTab, loadContext, stats } from './lib/actions.js';
-import { clearRemoteRules, fetchRemoteRules, recordRemoteError } from './lib/settings.js';
+import { applyLayout, clearRemoteRules, fetchRemoteRules, recordRemoteError } from './lib/settings.js';
 import { canonicalize, isBlankUrl } from './lib/url.js';
 
 const MENU_ROOT = 'organizeTabs';
@@ -81,30 +81,38 @@ function rebuildContextMenus() {
 }
 
 async function buildContextMenus() {
+    const ctx = await loadContext();
+    const { sections, favorites } = applyLayout(ACTIONS, ctx.settings.layout);
     await chrome.contextMenus.removeAll();
     chrome.contextMenus.create({ id: MENU_ROOT, title: 'Organize Tabs', contexts: ['all'] });
-    let lastGroup = null;
-    for (const action of ACTIONS) {
-        if (lastGroup && lastGroup !== action.group) {
-            chrome.contextMenus.create({
-                id: `sep-${action.group}`,
-                parentId: MENU_ROOT,
-                type: 'separator',
-                contexts: ['all']
-            });
-        }
-        lastGroup = action.group;
+    const seen = new Set();
+    const add = (action, suffix = '') => {
         chrome.contextMenus.create({
-            id: action.id,
+            id: `${action.id}${suffix}`,
             parentId: MENU_ROOT,
             title: action.name,
             contexts: ['all']
         });
+    };
+    if (favorites.length > 0) {
+        favorites.forEach((a) => add(a, ':fav'));
+        chrome.contextMenus.create({ id: 'sep-favorites', parentId: MENU_ROOT, type: 'separator', contexts: ['all'] });
     }
+    sections.forEach((section, i) => {
+        if (i > 0) {
+            chrome.contextMenus.create({ id: `sep-${section.id}`, parentId: MENU_ROOT, type: 'separator', contexts: ['all'] });
+        }
+        section.actions.forEach((a) => {
+            if (!seen.has(a.id)) {
+                seen.add(a.id);
+                add(a);
+            }
+        });
+    });
 }
 
 chrome.contextMenus.onClicked.addListener(async (info, tab) => {
-    const action = ACTION_BY_ID[info.menuItemId];
+    const action = ACTION_BY_ID[String(info.menuItemId).replace(/:fav$/, '')];
     if (!action) {
         return;
     }

@@ -16,7 +16,7 @@ Chrome Web Store: <https://chrome.google.com/webstore/detail/organize-tabs/ebnlp
 
 ## Actions
 
-Every action is available from the toolbar popup, the right-click context menu, and (optionally) a keyboard shortcut. Actions that close tabs show a preview first, and the last close can always be undone.
+Every action is available from the toolbar popup, the right-click context menu, and (optionally) a keyboard shortcut. Sections and actions can be reordered and favorites pinned to the top; see "Make it yours" below. Actions that close tabs show a preview first, and the last close can always be undone.
 
 ### Organize
 
@@ -48,6 +48,10 @@ Every action is available from the toolbar popup, the right-click context menu, 
 | **Pull Meetings & Media to a Window** | Moves every tab that is playing audio or showing a meeting or video player into its own window and focuses the meeting. |
 | **Bring All Windows to Front** | Focuses and cascades every window so misplaced ones reappear. |
 | **Undo Last Close** | Reopens whatever the last action closed. |
+
+## Make it yours
+
+**Customize** in the popup footer turns on layout editing: star an action to pin it to a **Favorites** tray at the top, and use the arrows to reorder actions within a section or the sections themselves. The default order is Windows, Clean up, Organize. The layout is part of your settings, so it syncs with the profile and travels with export and import, and the right-click menu follows the same order.
 
 ## Duplicate rules
 

@@ -32,6 +32,7 @@ STORE_LISTING.md       Chrome Web Store copy, permission justifications, privacy
 - **Windows holding a meeting or playing media are primary.** Consolidate and Split go through `withoutProtectedWindows`; new window-rearranging actions should too. `isMediaTab` in `src/lib/url.js` defines media (audible, or a URL matching the user's media patterns).
 - **Anything that closes tabs with content goes through `closeTabs`** so it lands in the undo stack, and exposes a `preview` so the popup can show the list first. Blank new-tab pages are the one exception: they carry nothing to restore. Tabs the extension itself opens (Undo, Restore) are registered with `markOwnTab` so auto-dedupe leaves them alone.
 - **Pure logic lives in `src/lib/url.js`** and gets a unit test. New duplicate rules go in `DEFAULT_RULES` with a case in `test/url.test.js` showing the URL variants that must collapse and one that must not.
+- **Popup and context-menu order come from `settings.layout`** via `applyLayout` in `src/lib/settings.js` (section order, per-section action order, favorites). `ACTIONS` in `src/lib/actions.js` stays in registry order; never hardcode display order elsewhere.
 - Keep the existing code style (`.prettierrc`: 4 spaces, single quotes, semicolons).
 
 ## Testing

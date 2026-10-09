@@ -328,6 +328,23 @@ try {
     // popup renders
     const popupButtons = await popup.eval(`document.querySelectorAll('.action').length`);
     check('popup renders action buttons', popupButtons === 16, `${popupButtons} buttons`);
+    const sectionOrder = await popup.eval(`[...document.querySelectorAll('#actions .section')].map((s) => s.dataset.section).join(',')`);
+    check('popup default section order is windows, cleanup, organize', sectionOrder === 'windows,cleanup,organize', sectionOrder);
+
+    // customize: favorites tray and reordering persist through settings
+    await popup.eval(`document.querySelector('#customize').click()`);
+    await sleep(200);
+    await popup.eval(`document.querySelector('.action[data-action="dedupe"] .star').click()`);
+    await sleep(500);
+    await popup.eval(`document.querySelector('.section[data-section="organize"] h2 .mv').click()`); // move organize up
+    await sleep(500);
+    await popup.eval(`document.querySelector('#customize').click()`); // toggle off
+    await popup.eval(`location.reload()`);
+    await sleep(1500);
+    const afterLayout = await popup.eval(`[...document.querySelectorAll('#actions .section')].map((s) => s.dataset.section + ':' + [...s.querySelectorAll('.action')].slice(0, 1).map((b) => b.dataset.action)).join(' ')`);
+    check('favorites tray and section order persist', /^favorites:dedupe windows:\w+ organize:\w+ cleanup:\w+$/.test(afterLayout), afterLayout);
+    const stored = await popup.eval(`(async () => { const m = await import('./lib/settings.js'); const l = await m.loadSettings(); return JSON.stringify(l.settings.layout); })()`);
+    check('layout saved to settings', /"favorites":\["dedupe"\]/.test(stored) && /"sections":\["windows","organize","cleanup"\]/.test(stored), stored);
 
     // any console errors in the service worker?
     const swTarget = await waitFor((t) => t.type === 'service_worker' && t.url.startsWith(`chrome-extension://${extId}/`), 'sw');

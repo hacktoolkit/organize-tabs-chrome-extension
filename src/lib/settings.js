@@ -29,6 +29,13 @@ export const DEFAULT_SETTINGS = {
     protectMediaWindows: true,
     // URL patterns that count as a meeting or media player even when silent
     mediaPatterns: [...DEFAULT_MEDIA_PATTERNS],
+    // popup and context-menu layout: section order, per-section action order,
+    // and a favorites tray shown first
+    layout: {
+        sections: ['windows', 'cleanup', 'organize'],
+        actions: {},
+        favorites: []
+    },
     // optional URL of a JSON file with {"rules": [...]} to merge in
     remoteRulesUrl: '',
     remoteRefreshHours: 24
@@ -73,7 +80,40 @@ export function mergeSettings(stored) {
         ...DEFAULT_NORMALIZATION,
         ...((stored && stored.normalization) || {})
     };
+    const layout = (stored && stored.layout) || {};
+    s.layout = {
+        sections: Array.isArray(layout.sections) && layout.sections.length ? [...layout.sections] : [...DEFAULT_SETTINGS.layout.sections],
+        actions: { ...(layout.actions || {}) },
+        favorites: Array.isArray(layout.favorites) ? [...layout.favorites] : []
+    };
     return s;
+}
+
+// Orders a list of actions ({id, group}) by a layout: returns
+// { sections: [{ id, actions }], favorites: [action] }. Unknown sections and
+// actions fall back to their registry order, so a stale layout never hides
+// anything.
+export function applyLayout(actions, layout) {
+    const groups = [];
+    for (const a of actions) {
+        if (!groups.includes(a.group)) groups.push(a.group);
+    }
+    const sectionOrder = [
+        ...(layout?.sections || []).filter((g) => groups.includes(g)),
+        ...groups.filter((g) => !(layout?.sections || []).includes(g))
+    ];
+    const byId = new Map(actions.map((a) => [a.id, a]));
+    const sections = sectionOrder.map((id) => {
+        const inGroup = actions.filter((a) => a.group === id);
+        const wanted = (layout?.actions?.[id] || []).filter((x) => inGroup.some((a) => a.id === x));
+        const ordered = [
+            ...wanted.map((x) => byId.get(x)),
+            ...inGroup.filter((a) => !wanted.includes(a.id))
+        ];
+        return { id, actions: ordered };
+    });
+    const favorites = (layout?.favorites || []).filter((x) => byId.has(x)).map((x) => byId.get(x));
+    return { sections, favorites };
 }
 
 // Returns { settings, rules, remoteRules, source } where rules are the user's
