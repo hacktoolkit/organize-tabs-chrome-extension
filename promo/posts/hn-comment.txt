@@ -1,0 +1,21 @@
+I open every link I'm pinged and use the open tabs as a to-do list. By the end of the week that's 100+ tabs across several windows, with the same GitHub PR open as /pull/123, /pull/123/files and /pull/123/checks, the same LinkedIn profile open twice, and the same Jira issue open as /browse/ENG-1 and as ?selectedIssue=ENG-1 on a board.
+
+Every tab deduper I tried compares exact URLs, so none of those count as duplicates. This one works differently: a URL is first normalized (scheme, www, fragment, trailing slash, tracking params, query order), then run through a list of rules, each a regex plus a key template. A rule like
+
+  ^https?://github\.com/([^/]+)/([^/]+)/pull/(\d+)  ->  github:$1/$2/pull/$3
+
+makes every subpage of a PR the same key. 19 rules ship for GitHub, Bitbucket, GitLab, Jira, Confluence, LinkedIn, YouTube, Google Docs/Drive, Notion, HubSpot, Slack, Figma, Amazon, Stack Overflow, Reddit and X. They're editable JSON with a live tester, and you can point the extension at a rules file you host so the same rules follow you across machines.
+
+The same rules power "close tabs like this one": from any PR you can close every open PR (same kind of page), everything under github.com/myorg (same section), or everything on github.com (same domain), keeping the one you're on. There's a preview before anything closes and an undo after.
+
+Other things I cared about:
+
+- It never moves a pinned tab, and it never breaks a tab group. Sort keeps groups contiguous; consolidating windows moves whole groups and merges same-named ones.
+- Windows with a meeting or playing media are left alone by consolidate/split, and there's a one-click "pull meetings and media into their own window". I'm usually on a call while tidying.
+- Vanilla JS, Manifest V3, no build step, no dependencies, no network calls except the optional rules file you configure. Nothing leaves the browser.
+
+Testing was the fun part. The pure URL logic has a node --test suite. The whole extension is also driven end to end in a real headless Chromium over the DevTools protocol: it seeds tabs, clicks every action, and asserts on the resulting windows, groups and pinned state. That runs in CI on every push, and the same harness records the demo video in the README.
+
+Limitations: Chrome has no API for the tab-strip right-click menu, so actions live in the toolbar popup, the page context menu and keyboard shortcuts. "Stale tab" detection uses lastAccessed, which needs Chrome 121+. It can't tell a paused video from a playing one without a content script, so silent media detection is URL-based.
+
+Happy to answer questions, and if a site's URLs should collapse and don't, two example URLs in an issue is enough for me to add a rule.

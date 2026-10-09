@@ -18,7 +18,9 @@ src/ui.css             shared design tokens, light and dark
 test/url.test.js       node --test suite for src/lib/url.js
 scripts/e2e.mjs        headless browser test over the DevTools protocol
 scripts/dev.mjs        launches the holodeck dev profile with sample tabs
-scripts/screenshots.mjs renders README images and 1280x800 store screenshots
+scripts/screenshots.mjs renders README images, store screenshots and promo tiles
+scripts/demo.mjs       records promo/demo.mp4, demo.gif and stills (ffmpeg-static in the holodeck)
+promo/ANNOUNCEMENT.md  launch posts (LinkedIn, X, Show HN); plain text in promo/posts/
 STORE_LISTING.md       Chrome Web Store copy, permission justifications, privacy answers
 ```
 

@@ -1,0 +1,4 @@
+Vanilla JS, no build step, no dependencies. Rules are editable JSON with a live tester, so if your site's URLs should collapse and don't, it's a ten-line PR.
+
+Store: https://chrome.google.com/webstore/detail/organize-tabs/ebnlpacdgjnofakgfgbildmjdhbibnpa
+Code: https://github.com/hacktoolkit/organize-tabs-chrome-extension

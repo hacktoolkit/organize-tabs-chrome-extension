@@ -1,0 +1,26 @@
+I open every link I get pinged and use the tabs as my to-do list. By Friday that is 100+ tabs, the same pull request open three times, and a browser eating memory.
+
+So I rebuilt Organize Tabs, the Chrome extension I wrote in 2020 and have used daily since. Version 2.0 is out today, free and open source.
+
+What is new:
+
+→ Deduplicate that actually understands pages. A PR and its Files tab, a Jira issue and its board link, a LinkedIn profile and its Experience page, a Google Doc in edit and view mode: one key, one tab. 19 built-in rules, all editable, with a live tester.
+
+→ Auto-dedupe. Open a link that is already open and it closes the new tab and takes you to the existing one.
+
+→ Close tabs like this one. From any page, close everything on the same domain, the same section of the site, or the same kind of page. Every open pull request. Every profile. Keep the one you are on.
+
+→ Tab groups that survive. Group by domain, sort with groups intact, consolidate windows and the groups come along.
+
+→ Meetings are sacred. Pull the call and the video into their own window with one click. Tidying never pulls the meeting out from under you.
+
+→ Preview before every close. Undo after. Settings sync across your profiles, with JSON export and import.
+
+Vanilla JavaScript, no build step, no dependencies, no tracking. Nothing leaves your browser.
+
+Chrome Web Store: https://chrome.google.com/webstore/detail/organize-tabs/ebnlpacdgjnofakgfgbildmjdhbibnpa
+Source: https://github.com/hacktoolkit/organize-tabs-chrome-extension
+
+If you have a site whose URLs should count as the same page and do not, open an issue with two example URLs. Rules are a ten-line PR.
+
+#chrome #productivity #opensource #browserextension

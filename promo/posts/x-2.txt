@@ -1,0 +1,6 @@
+Also new:
+• Close tabs like this one: every open PR, every profile, keep the one you're on
+• Tab groups survive sorting and consolidating
+• Meetings get their own window, never touched by cleanups
+• Preview before every close, undo after
+• Settings sync + JSON export

@@ -1,5 +1,5 @@
 VERSION := $(shell jq < manifest.json .version -r)
-.PHONY: help test check e2e dev dev-clean screenshots clean package
+.PHONY: help test check e2e dev dev-clean screenshots demo clean package
 
 ## help - Display help about make targets for this Makefile
 help:
@@ -36,3 +36,8 @@ dev-clean:
 ## screenshots - render README and Chrome Web Store screenshots from the holodeck
 screenshots:
 	node scripts/screenshots.mjs
+
+## demo - record promo/demo.mp4, demo.gif and stills from the holodeck (installs ffmpeg-static into ~/.holodeck/tools)
+demo:
+	@test -x "$${HOLODECK:-$$HOME/.holodeck}/tools/node_modules/ffmpeg-static/ffmpeg" || npm install --prefix "$${HOLODECK:-$$HOME/.holodeck}/tools" --silent --no-audit --no-fund ffmpeg-static
+	node scripts/demo.mjs
