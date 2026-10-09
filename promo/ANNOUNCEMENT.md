@@ -4,6 +4,8 @@ Post once the Chrome Web Store review approves 2.0.0. Attach `promo/demo.mp4` (L
 
 Links:
 - Blog post (publish this first, then link to it): https://www.jontsai.com/2026/10/10/organize-tabs-2-0
+- LinkedIn post (published 2026-10-10): https://www.linkedin.com/posts/jontsai_chrome-productivity-opensource-ugcPost-7514415445207265280-hZz8/
+- X thread (published 2026-10-10): https://x.com/jontsai/status/2108650484336861655
 - Store: https://chrome.google.com/webstore/detail/organize-tabs/ebnlpacdgjnofakgfgbildmjdhbibnpa
 - Source: https://github.com/hacktoolkit/organize-tabs-chrome-extension
 
