@@ -107,7 +107,7 @@ Show HN: Organize Tabs – Chrome extension that dedupes PRs, tickets and profil
 
 URL: `https://www.jontsai.com/2026/10/10/organize-tabs-2-0` (the write-up with the demo video; the repo is linked from it and from the comment below)
 
-First comment, posted immediately after submitting. HN rewards specifics and candour about how it works and what it does not do.
+First comment, posted immediately after submitting. If HN's filter kills it (long comment, several links, fresh submission), email hn@ycombinator.com with the item link and post `promo/posts/hn-comment-short.txt`, which has no URLs, in the meantime. HN rewards specifics and candour about how it works and what it does not do.
 
 ```
 I open every link I'm pinged and use the open tabs as a to-do list. By the end of the week that's 100+ tabs across several windows, with the same GitHub PR open as /pull/123, /pull/123/files and /pull/123/checks, the same LinkedIn profile open twice, and the same Jira issue open as /browse/ENG-1 and as ?selectedIssue=ENG-1 on a board.

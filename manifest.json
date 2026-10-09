@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "Organize Tabs",
     "short_name": "Organize Tabs",
-    "version": "2.0.0",
+    "version": "2.0.1",
     "description": "Group, sort, deduplicate and tidy tabs. Catches duplicate PRs, tickets, profiles and docs even when the URLs differ.",
     "author": "Hacktoolkit (@hacktoolkit)",
     "minimum_chrome_version": "121",
