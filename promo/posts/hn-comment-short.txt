@@ -1,0 +1,13 @@
+Author here. I open every link I'm pinged and use the tabs as a to-do list, so by Friday it's 100+ tabs with the same GitHub PR open as /pull/123, /pull/123/files and /pull/123/checks, the same Jira issue as /browse/ENG-1 and as ?selectedIssue=ENG-1 on a board, and the same LinkedIn profile open twice.
+
+Every tab deduper I tried compares exact URLs, so none of those count. This one normalizes the URL first (scheme, www, fragment, trailing slash, tracking params, query order), then runs it through rules: a regex plus a key template, so every subpage of a PR gets the key github:org/repo/pull/123. 19 rules ship (GitHub, Bitbucket, GitLab, Jira, Confluence, LinkedIn, YouTube, Google Docs, Notion, HubSpot, Slack, Figma, Amazon, Stack Overflow, Reddit, X), all editable JSON with a live tester.
+
+The same rules power "close tabs like this one": every open PR, everything under github.com/myorg, or everything on github.com, keeping the one you're on. Preview before anything closes, undo after.
+
+Other constraints I cared about: it never moves a pinned tab, never breaks a tab group (cross-window moves carry whole groups and merge same-named ones), and windows holding a meeting or playing media are left alone by consolidate/split, since I'm usually on a call while tidying.
+
+Vanilla JS, Manifest V3, no build step, no dependencies, no network calls except an optional rules file you host. The pure URL logic has a node test suite, and the whole extension is driven end to end in a headless Chromium over the DevTools protocol in CI; the same harness records the demo video in the post.
+
+Limitations: Chrome has no API for the tab-strip right-click menu, so actions live in the popup, page context menu and shortcuts. Stale-tab detection needs Chrome 121+. Silent media detection is URL-based.
+
+Source is MIT on GitHub (hacktoolkit/organize-tabs-chrome-extension). If a site's URLs should collapse and don't, two example URLs in an issue is enough for me to add a rule.

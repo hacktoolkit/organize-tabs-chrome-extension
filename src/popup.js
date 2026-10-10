@@ -1,13 +1,9 @@
 // Popup: renders the action list, previews destructive actions, and sends
 // everything to the service worker to run.
 
-import { loadSettings } from './lib/settings.js';
+import { applyLayout, loadSettings, saveSettings } from './lib/settings.js';
 
-const GROUPS = [
-    { id: 'organize', title: 'Organize' },
-    { id: 'cleanup', title: 'Clean up' },
-    { id: 'windows', title: 'Windows' }
-];
+const GROUP_TITLES = { organize: 'Organize', cleanup: 'Clean up', windows: 'Windows' };
 
 const SHORTCUT_COMMANDS = new Set([
     'dedupe', 'sortWindow', 'groupByDomain', 'closeScope', 'closeBlank', 'closeStale',
@@ -39,6 +35,8 @@ let actions = [];
 let stats = null;
 let currentTab = null;
 let panelState = null;
+let settings = null;
+let customizing = false;
 
 function send(message) {
     return new Promise((resolve, reject) => {
@@ -92,34 +90,126 @@ function countFor(actionId) {
 
 let shortcuts = {};
 
+function layout() {
+    return settings ? settings.layout : { sections: [], actions: {}, favorites: [] };
+}
+
+async function saveLayout(next) {
+    settings.layout = next;
+    try {
+        await saveSettings({ settings });
+        await send({ type: 'settingsChanged' });
+    } catch (e) {
+        toast(e.message, { error: true });
+    }
+    renderActions();
+}
+
+function move(list, item, delta) {
+    const i = list.indexOf(item);
+    const j = i + delta;
+    if (i < 0 || j < 0 || j >= list.length) return list;
+    const out = [...list];
+    out.splice(i, 1);
+    out.splice(j, 0, item);
+    return out;
+}
+
+function actionRow(a, { sectionId, inFavorites, orderedIds }) {
+    const count = countFor(a.id);
+    const isFav = layout().favorites.includes(a.id);
+    const btn = el('button', {
+        class: 'action',
+        title: document.body.classList.contains('help') || customizing ? '' : a.help,
+        'data-action': a.id,
+        onclick: () => { if (!customizing) activate(a); }
+    }, [
+        icon(a.id),
+        el('span', { class: 'lbl' }, [
+            el('b', { text: a.name }),
+            el('small', { text: a.help })
+        ]),
+        !customizing && shortcuts[a.id] ? el('kbd', { text: shortcuts[a.id] }) : null,
+        !customizing && count !== null ? el('span', { class: `pill cnt ${count ? '' : 'zero'}`, text: String(count) }) : null
+    ]);
+    if (!customizing && a.id === 'undo' && !(stats && stats.undo)) {
+        btn.disabled = true;
+    }
+    if (!customizing) return btn;
+
+    const l = layout();
+    const controls = el('span', { class: 'ctl' }, [
+        el('button', {
+            class: `star${isFav ? ' on' : ''}`, title: isFav ? 'Remove from favorites' : 'Add to favorites', 'aria-label': 'Favorite',
+            onclick: (e) => {
+                e.stopPropagation();
+                const favorites = isFav ? l.favorites.filter((x) => x !== a.id) : [...l.favorites, a.id];
+                saveLayout({ ...l, favorites });
+            }
+        }, ['★']),
+        el('button', {
+            class: 'mv', title: 'Move up', 'aria-label': 'Move up',
+            onclick: (e) => {
+                e.stopPropagation();
+                if (inFavorites) saveLayout({ ...l, favorites: move(l.favorites, a.id, -1) });
+                else saveLayout({ ...l, actions: { ...l.actions, [sectionId]: move(orderedIds, a.id, -1) } });
+            }
+        }, ['↑']),
+        el('button', {
+            class: 'mv', title: 'Move down', 'aria-label': 'Move down',
+            onclick: (e) => {
+                e.stopPropagation();
+                if (inFavorites) saveLayout({ ...l, favorites: move(l.favorites, a.id, 1) });
+                else saveLayout({ ...l, actions: { ...l.actions, [sectionId]: move(orderedIds, a.id, 1) } });
+            }
+        }, ['↓'])
+    ]);
+    btn.append(controls);
+    return btn;
+}
+
 function renderActions() {
     const root = $('#actions');
     root.innerHTML = '';
-    for (const g of GROUPS) {
-        const list = actions.filter((a) => a.group === g.id);
-        if (list.length === 0) continue;
-        const section = el('div', { class: 'section' }, [el('h2', { text: g.title })]);
-        for (const a of list) {
-            const count = countFor(a.id);
-            const btn = el('button', {
-                class: 'action',
-                title: document.body.classList.contains('help') ? '' : a.help,
-                onclick: () => activate(a)
-            }, [
-                icon(a.id),
-                el('span', { class: 'lbl' }, [
-                    el('b', { text: a.name }),
-                    el('small', { text: a.help })
-                ]),
-                shortcuts[a.id] ? el('kbd', { text: shortcuts[a.id] }) : null,
-                count !== null ? el('span', { class: `pill cnt ${count ? '' : 'zero'}`, text: String(count) }) : null
-            ]);
-            if (a.id === 'undo' && !(stats && stats.undo)) {
-                btn.disabled = true;
-            }
-            section.append(btn);
+    document.body.classList.toggle('customize', customizing);
+    const { sections, favorites } = applyLayout(actions, layout());
+
+    if (favorites.length > 0 || customizing) {
+        const section = el('div', { class: 'section favorites', 'data-section': 'favorites' }, [
+            el('h2', {}, [el('span', { text: 'Favorites' })])
+        ]);
+        if (favorites.length === 0) {
+            section.append(el('div', { class: 'hint', text: 'Star actions below to pin them here.' }));
+        }
+        for (const a of favorites) {
+            section.append(actionRow(a, { inFavorites: true }));
         }
         root.append(section);
+    }
+
+    sections.forEach((sec, i) => {
+        const header = el('h2', {}, [el('span', { text: GROUP_TITLES[sec.id] || sec.id })]);
+        if (customizing) {
+            const l = layout();
+            const ids = sections.map((x) => x.id);
+            header.append(el('span', { class: 'ctl' }, [
+                el('button', { class: 'mv', title: 'Move section up', 'aria-label': 'Move section up', onclick: () => saveLayout({ ...l, sections: move(ids, sec.id, -1) }) }, ['↑']),
+                el('button', { class: 'mv', title: 'Move section down', 'aria-label': 'Move section down', onclick: () => saveLayout({ ...l, sections: move(ids, sec.id, 1) }) }, ['↓'])
+            ]));
+        }
+        const section = el('div', { class: 'section', 'data-section': sec.id }, [header]);
+        const orderedIds = sec.actions.map((a) => a.id);
+        for (const a of sec.actions) {
+            section.append(actionRow(a, { sectionId: sec.id, orderedIds }));
+        }
+        root.append(section);
+    });
+
+    if (customizing) {
+        root.append(el('div', { class: 'customize-foot' }, [
+            el('button', { class: 'ghost', text: 'Reset layout', onclick: () => saveLayout({ sections: ['windows', 'cleanup', 'organize'], actions: {}, favorites: [] }) }),
+            el('button', { class: 'primary', text: 'Done', onclick: () => { customizing = false; renderActions(); } })
+        ]));
     }
 }
 
@@ -150,6 +240,11 @@ async function refresh() {
         stats = await send({ type: 'stats' });
     } catch (e) {
         stats = null;
+    }
+    try {
+        settings = (await loadSettings()).settings;
+    } catch (e) {
+        settings = settings || null;
     }
     renderStats();
     renderActions();
@@ -197,8 +292,8 @@ async function activate(action) {
 
 async function needsConfirm() {
     try {
-        const { settings } = await loadSettings();
-        return settings.confirmClose !== false;
+        const current = settings || (await loadSettings()).settings;
+        return current.confirmClose !== false;
     } catch (e) {
         return true;
     }
@@ -344,6 +439,11 @@ async function init() {
         e.preventDefault();
         chrome.runtime.openOptionsPage();
     });
+    $('#customize').addEventListener('click', (e) => {
+        e.preventDefault();
+        customizing = !customizing;
+        renderActions();
+    });
 
     const helpToggle = $('#help-toggle');
     let helpOn = false;
@@ -370,6 +470,11 @@ async function init() {
     } catch (e) { currentTab = null; }
 
     await loadShortcuts();
+    try {
+        settings = (await loadSettings()).settings;
+    } catch (e) {
+        settings = null;
+    }
     try {
         actions = await send({ type: 'actions' });
     } catch (e) {
